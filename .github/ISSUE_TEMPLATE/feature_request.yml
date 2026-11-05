@@ -1,0 +1,23 @@
+name: Idea or feature request
+description: Suggest something LogVice could do better
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: The troubleshooting task or log you work with, and what makes it slow or hard today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How LogVice could help
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example log lines
+      description: Optional. Remove computer names, user names and other private data first.
+      render: text
