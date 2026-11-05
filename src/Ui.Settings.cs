@@ -21,7 +21,10 @@ namespace LogVice
         readonly List<Control> highItems = new List<Control>();
         readonly List<Control> aboutItems = new List<Control>();
         readonly Segmented segTheme, segSize, segDensity;
-        readonly FluentToggle togTint, togLines, togLive, togMerge, togReopen;
+        readonly FluentToggle togTint, togLines, togLive, togMerge, togReopen, togUpdates;
+        SettingRow rowUpdate;
+        FluentButton bUpdate;
+        UpdateInfo update;
         List<HighlightRule> rules = new List<HighlightRule>();
         readonly SettingRow rowRecent, rowFound;
         readonly ToolTip tips;
@@ -83,6 +86,7 @@ namespace LogVice
             togLive = Toggle("Live", true);
             togMerge = Toggle("AutoMerge", Settings.GetBool("History", true));
             togReopen = Toggle("ReopenLast", false);
+            togUpdates = Toggle("UpdateCheck", true);
 
             AddS(new SectionTitle("Appearance"));
             AddS(new SettingRow(Glyph.Palette, "Theme", "Choose light or dark, or follow the Windows app mode.", segTheme));
@@ -125,6 +129,15 @@ namespace LogVice
             FluentButton bAdd = Button("Add folder", "Add a folder with logs, for example a share with collected logs");
             bAdd.Click += delegate { AddFolder(); };
             AddS(new SettingRow(Glyph.Plus, "Add a folder", "Add your own log folder. It appears on the start page and in Browse logs.", bAdd));
+
+            AddS(new SectionTitle("Updates"));
+            if (Updates.BlockedByPolicy)
+            {
+                SettingRow pol = new SettingRow(Glyph.Info, "Check for updates", "Your organization has turned this off with the policy value DisableUpdateCheck.", null);
+                pol.Value = "Off";
+                AddS(pol);
+            }
+            else AddS(new SettingRow(Glyph.Info, "Check for updates", "Once a day at start, LogVice asks GitHub which version is the latest and shows an Update button when there is a newer one. Nothing about you or your logs is sent. Administrators can turn it off for everyone with the DWORD DisableUpdateCheck = 1 under HKLM\\SOFTWARE\\Policies\\LogVice.", togUpdates));
 
             AddS(new SectionTitle("Data"));
             FluentButton bClear = Button("Clear", "Remove all recent files");
@@ -221,6 +234,7 @@ namespace LogVice
             togLive.SetSilently(Settings.GetBool("Live", true));
             togMerge.SetSilently(Settings.GetBool("AutoMerge", Settings.GetBool("History", true)));
             togReopen.SetSilently(Settings.GetBool("ReopenLast", false));
+            togUpdates.SetSilently(Settings.GetBool("UpdateCheck", true));
             loading = false;
             UpdateRecentRow();
         }
@@ -449,6 +463,10 @@ namespace LogVice
                 try { Clipboard.SetText(sb.ToString()); bCopy.Text = "Copied"; } catch (Exception) { bCopy.Text = "Clipboard busy"; }
             };
             AddA(new SettingRow(Glyph.Copy, "Copy details", "Paste them into a support ticket or an email.", bCopy));
+            bUpdate = Button("Check now", "Ask GitHub which version is the latest");
+            bUpdate.Click += delegate { UpdateClicked(); };
+            rowUpdate = new SettingRow(Glyph.Info, "Updates", "Releases are published on GitHub: " + Updates.ReleasesUrl, bUpdate);
+            AddA(rowUpdate);
 
             AddA(new SectionTitle("Supported logs"));
             AddA(new SettingRow(Glyph.File, "CMTrace", "ConfigMgr client and site server logs, Intune Management Extension logs (IntuneManagementExtension, AgentExecutor).", null));
@@ -479,7 +497,42 @@ namespace LogVice
             }));
 
             AddA(new SectionTitle("Privacy"));
-            AddA(new SettingRow(Glyph.Info, "Your logs stay where they are", "Files are opened read-only and shared, so clients keep writing them. LogVice sends nothing anywhere. It only reaches another computer when you connect to it in Browse logs, through that computer's admin shares and its event log service. With Connect as, the account is used only for that connection, and its password is kept only if you tick Remember my credentials, in Windows Credential Manager.", null));
+            AddA(new SettingRow(Glyph.Info, "Your logs stay where they are", "Files are opened read-only and shared, so clients keep writing them. LogVice sends nothing about you or your logs anywhere. The only internet call is the daily update check, which asks GitHub for the latest version and can be turned off under Settings > Updates. It only reaches another computer when you connect to it in Browse logs, through that computer's admin shares and its event log service. With Connect as, the account is used only for that connection, and its password is kept only if you tick Remember my credentials, in Windows Credential Manager.", null));
+        }
+
+        void UpdateClicked()
+        {
+            if (update != null && update.Newer)
+            {
+                try { Process.Start(update.Url); } catch (Exception) { }
+                return;
+            }
+            bUpdate.Enabled = false;
+            SetUpdateText("Checking GitHub\u2026", "Checking\u2026");
+            Updates.CheckAsync(delegate (UpdateInfo r)
+            {
+                if (IsDisposed || !IsHandleCreated) return;
+                try { BeginInvoke((Action)delegate { bUpdate.Enabled = true; ShowUpdate(r); }); } catch (InvalidOperationException) { }
+            });
+        }
+
+        public void ShowUpdate(UpdateInfo r)
+        {
+            update = r;
+            if (r == null || rowUpdate == null) return;
+            if (r.Error != null) SetUpdateText(r.Error + " Releases are published on " + Updates.ReleasesUrl, "Check now");
+            else if (r.Newer) SetUpdateText("LogVice " + r.Latest + " is available. You have " + Program.Version + ".", "Download " + r.Latest);
+            else SetUpdateText("You have the latest version, " + Program.Version + ".", "Check now");
+        }
+
+        void SetUpdateText(string desc, string button)
+        {
+            rowUpdate.Desc = desc;
+            bUpdate.Text = button;
+            bUpdate.Width = bUpdate.GetPreferredSize(Size.Empty).Width;
+            rowUpdate.PerformLayout();
+            Relayout();
+            rowUpdate.Invalidate();
         }
 
         static List<string[]> Details()

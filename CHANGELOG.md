@@ -6,7 +6,8 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 
 | Version | Highlights | Upgrade |
 |---|---|---|
-| **1.4.0** (latest) | New name LogVice, Windows event logs (live channels, remote computers and .evtx files) | Run the MSI. It replaces Trace Lens and any earlier version |
+| **1.5.0** (latest) | Update check with an Update button, ADMX policy to turn it off, releases built and checksummed by GitHub Actions | Run the MSI. It replaces Trace Lens and any earlier version |
+| 1.4.0 | New name LogVice, Windows event logs (live channels, remote computers and .evtx files) | |
 | 1.3.2 | Theme button in the toolbar, asks for administrator rights when a log needs them, more reliable Connect as | |
 | 1.3.1 | Sharper, easier-to-read look: striped rows, colour bars, clearer timestamps, larger detail text | |
 | 1.3.0 | Windows Update ETL logs, Home button, Connect as, auto-merge, linked error codes, highlight rules, line numbers | |
@@ -14,6 +15,24 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 | 1.1.0 | Windows 11 style with light and dark themes | |
 
 ![LogVice log view](docs/images/log-light.png)
+
+## LogVice 1.5.0
+
+LogVice 1.5.0 tells you when a newer version is out, and its releases are now built by GitHub Actions with checksums and a provenance attestation.
+
+| | |
+|---|---|
+| Product code | `{902113B3-B6C9-45F4-8F0D-EB8CC84629A5}` |
+| Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (unchanged) |
+| Files | `LogVice.msi`, `LogVice.exe`, `SHA256SUMS.txt` |
+
+### New in 1.5.0
+
+- **Update check**: once a day at start, LogVice asks GitHub for the latest release. When there is a newer one, an **Update** button appears in the toolbar and About shows a **Download** button. Nothing about you or your logs is sent, and the Windows proxy settings are used.
+- **Settings > Updates** turns the check on or off, and **About > Updates** has **Check now**.
+- **Policy**: `DisableUpdateCheck = 1` (DWORD) under `HKLM\SOFTWARE\Policies\LogVice` turns the check off for everyone. An administrative template for Intune and Group Policy is in `policy/`.
+- **Builds by GitHub Actions**: releases are built from the source in the repository, with `SHA256SUMS.txt` and a build provenance attestation you can check with `gh attestation verify`.
+- **Fixed product code per version**: the product code is set in `LogVice.wxs`, so it is known before the build and stays the same if a release is rebuilt.
 
 ## LogVice 1.4.0
 
@@ -181,13 +200,14 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later, with .NET 
 
 | Package | How to upgrade from an earlier version |
 | --- | --- |
-| LogVice.msi | Run the 1.4.0 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
+| LogVice.msi | Run the 1.5.0 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
 | LogVice.exe (portable) | Delete TraceLens.exe and use LogVice.exe. Your settings are copied on first start |
 
 | MSI setting | Value |
 | --- | --- |
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {2BDC8F66-2461-46EE-AA50-3264BCC5F34A} /qn` |
+| Uninstall command | `msiexec /x {902113B3-B6C9-45F4-8F0D-EB8CC84629A5} /qn` |
+| Product code (1.5.0) | `{902113B3-B6C9-45F4-8F0D-EB8CC84629A5}` |
 | Product code (1.4.0) | `{2BDC8F66-2461-46EE-AA50-3264BCC5F34A}` |
 | Product code (1.3.2) | `{77F03080-EDFC-44B9-B5E7-BE515EA07AEE}` |
 | Product code (1.3.1) | `{4CFC072C-7DFE-495D-83AF-FDC1AE6C5ADC}` |
@@ -201,7 +221,7 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later, with .NET 
 | Install context | System, per machine |
 | Restart | Not needed |
 
-In Intune or ConfigMgr, add 1.4.0 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
+In Intune or ConfigMgr, add 1.5.0 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
 
 ## Known limitations
 
@@ -221,6 +241,7 @@ In Intune or ConfigMgr, add 1.4.0 as a new app that supersedes the earlier versi
 
 | Version | Released | Summary |
 | --- | --- | --- |
+| 1.5.0 | 5 Nov 2026 | Update check with Update button and ADMX policy; releases built by GitHub Actions with checksums and attestation |
 | 1.4.0 | 5 Nov 2026 | New name LogVice (was Trace Lens); Windows event logs: live channels, remote computers and .evtx files; settings carried over |
 | 1.3.2 | 5 Nov 2026 | Theme button, administrator prompt for protected logs, Connect as fixes, a new secret |
 | 1.3.1 | 4 Nov 2026 | Sharper, easier-to-read look: striped rows, colour bars, clearer timestamps, larger detail text, new start page |

@@ -1,0 +1,94 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install Mono and msitools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends mono-devel wixl msitools
+
+      - name: Build LogVice.exe and LogVice.msi
+        run: ./package.sh
+
+      - name: Read version and product code
+        id: info
+        run: |
+          version=$(msiinfo export LogVice.msi Property | awk -F'\t' '$1=="ProductVersion"{print $2}' | tr -d '\r')
+          code=$(msiinfo export LogVice.msi Property | awk -F'\t' '$1=="ProductCode"{print $2}' | tr -d '\r')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "LogVice $version, product code $code"
+
+      - name: Check that the release tag matches the version
+        if: github.event_name == 'release'
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$tag" != "${{ steps.info.outputs.version }}" ]; then
+            echo "::error::Release tag $GITHUB_REF_NAME does not match version ${{ steps.info.outputs.version }} in LogVice.wxs"
+            exit 1
+          fi
+
+      - name: Write checksums
+        run: sha256sum LogVice.exe LogVice.msi > SHA256SUMS.txt && cat SHA256SUMS.txt
+
+      - name: Attest build provenance
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            LogVice.exe
+            LogVice.msi
+
+      - name: Keep the build as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LogVice-${{ steps.info.outputs.version }}
+          path: |
+            LogVice.exe
+            LogVice.msi
+            SHA256SUMS.txt
+
+      - name: Attach files to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" LogVice.exe LogVice.msi SHA256SUMS.txt --clobber
+          gh release view "$GITHUB_REF_NAME" --json body --jq .body > notes.md
+          {
+            echo
+            echo "### Deployment"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Product code | \`${{ steps.info.outputs.code }}\` |"
+            echo "| Install | \`msiexec /i LogVice.msi /qn\` |"
+            echo "| Uninstall | \`msiexec /x ${{ steps.info.outputs.code }} /qn\` |"
+            echo
+            echo "### SHA256"
+            echo
+            echo '```'
+            cat SHA256SUMS.txt
+            echo '```'
+            echo
+            echo "Built by GitHub Actions from commit ${GITHUB_SHA}. Verify a download with \`gh attestation verify LogVice.msi -R ${GITHUB_REPOSITORY}\`."
+          } >> notes.md
+          gh release edit "$GITHUB_REF_NAME" --notes-file notes.md

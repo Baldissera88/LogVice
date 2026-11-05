@@ -9,7 +9,8 @@
 </p>
 
 <p align="center">
-  <img alt="Version 1.4.0" src="https://img.shields.io/badge/version-1.4.0-005fb8">
+  <img alt="Version 1.5.0" src="https://img.shields.io/badge/version-1.5.0-005fb8">
+  <a href="../../actions/workflows/build.yml"><img alt="Build" src="../../actions/workflows/build.yml/badge.svg"></a>
   <img alt="Windows 10, 11 and Server 2016 or later" src="https://img.shields.io/badge/Windows-10%20%7C%2011%20%7C%20Server%202016%2B-0078d4">
   <img alt=".NET Framework 4.5 or later" src="https://img.shields.io/badge/.NET%20Framework-4.5%2B-512bd4">
   <img alt="No dependencies" src="https://img.shields.io/badge/dependencies-none-0f7b0f">
@@ -39,7 +40,8 @@ It is one small exe with no installer requirement and nothing to configure. An M
 - **Error lookup.** HRESULT, Win32, MSI, Windows Update and ConfigMgr codes are explained in the detail pane. Codes in a message are links.
 - **Line numbers.** See where each entry is in the file, or the record ID of an event, and press Ctrl+G to go to it.
 - **Administrator rights only when needed.** LogVice runs as a normal user and offers to restart as administrator when a log needs it, such as the Security event log.
-- **Read-only and private.** Files are opened read-only with full sharing, so clients keep writing and rolling them. Nothing leaves the computer.
+- **Read-only and private.** Files are opened read-only with full sharing, so clients keep writing and rolling them. Nothing about you or your logs leaves the computer.
+- **Update check.** Once a day LogVice asks GitHub for the latest version and shows an **Update** button when there is a newer one. Turn it off in Settings, or for everyone with a policy.
 
 <table>
   <tr>
@@ -60,6 +62,14 @@ Get the latest version from [Releases](../../releases). Pick the package that su
 |---|---|
 | `LogVice.msi` | You deploy to many devices with Intune or ConfigMgr. Installs per machine, adds a Start menu shortcut and *Open with* for `.log`, `.lo_`, `.etl` and `.evtx` |
 | `LogVice.exe` | You want a portable tool on a USB stick, a share or a jump server. No install needed |
+| `SHA256SUMS.txt` | Checksums of the exe and MSI, to check a download |
+
+Every release is built by [GitHub Actions](../../actions/workflows/build.yml) from the source in this repository, not on a private PC. Check that a file you downloaded is exactly what GitHub built:
+
+```powershell
+Get-FileHash .\LogVice.msi -Algorithm SHA256     # compare with SHA256SUMS.txt
+gh attestation verify .\LogVice.msi -R Baldissera88/LogVice
+```
 
 ### Requirements
 
@@ -73,12 +83,18 @@ The MSI installs per machine, needs no restart and upgrades any earlier version 
 | Setting | Value |
 |---|---|
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {2BDC8F66-2461-46EE-AA50-3264BCC5F34A} /qn` |
-| Detection | MSI product code `{2BDC8F66-2461-46EE-AA50-3264BCC5F34A}` (version 1.4.0) |
+| Uninstall command | `msiexec /x {902113B3-B6C9-45F4-8F0D-EB8CC84629A5} /qn` |
+| Detection | MSI product code `{902113B3-B6C9-45F4-8F0D-EB8CC84629A5}` (version 1.5.0) |
 | Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (the same for every version) |
 | Install context | System |
 
-Each new version has a new product code, listed in the [changelog](CHANGELOG.md). Add it as a new app that supersedes the earlier one.
+Each new version has a new product code, listed in the [changelog](CHANGELOG.md) and in the release notes. Add it as a new app that supersedes the earlier one.
+
+To turn off the update check on managed devices, use the administrative template in [`policy/`](policy): import `LogVice.admx` and `en-US/LogVice.adml` in Intune under **Devices > Configuration > Import ADMX**, or copy them to the Group Policy central store, then enable **LogVice > Turn off the update check**. The policy sets this value:
+
+| Key | Value | Type | Data |
+|---|---|---|---|
+| `HKLM\SOFTWARE\Policies\LogVice` | `DisableUpdateCheck` | DWORD | `1` |
 
 ## Usage
 
@@ -158,6 +174,8 @@ Add your own folders, for example a share with collected logs, under Settings.
 
 Settings are stored per user in `HKEY_CURRENT_USER\Software\LogVice`. Delete that key to reset everything. On first start, LogVice copies the settings from `HKEY_CURRENT_USER\Software\Trace Lens` if they are there. LogVice writes nothing else, except a temporary copy of an ETL file while it is read.
 
+The only internet call LogVice makes is the update check: at most once a day it asks `api.github.com` for the latest release of this repository. It sends nothing else, and it uses the Windows proxy settings. Turn it off under Settings > Updates or with the policy above.
+
 ## Build from source
 
 LogVice is plain C# 5 and Windows Forms, with no NuGet packages.
@@ -176,6 +194,14 @@ LogVice is plain C# 5 and Windows Forms, with no NuGet packages.
 ./package.sh         # LogVice.exe and LogVice.msi
 ```
 
+**On GitHub**, the [Build workflow](.github/workflows/build.yml) runs `package.sh` on every push. When a release is published, it builds the exe and MSI, attaches them with `SHA256SUMS.txt`, signs a build provenance attestation, and adds the product code and checksums to the release notes.
+
+To make a new release:
+
+1. Raise the version in `src/AssemblyInfo.cs` and `LogVice.wxs`, and give `Product Id` in `LogVice.wxs` a new GUID.
+2. Add the version to `CHANGELOG.md` and push.
+3. Create a release on GitHub with the tag `v<version>`, for example `v1.5.0`. The workflow stops if the tag and the version in `LogVice.wxs` differ.
+
 | Path | Contents |
 |---|---|
 | `src/Core.cs` | Log store, parsers for each format, loader and error code tables |
@@ -183,8 +209,10 @@ LogVice is plain C# 5 and Windows Forms, with no NuGet packages.
 | `src/Logs.EventLog.cs` | Windows event log reader for channels and `.evtx` files |
 | `src/Logs.Locations.cs` | Log discovery and auto-merge of spanned logs |
 | `src/Net.Remote.cs` | Connect as: Windows sign-in dialog and SMB session |
+| `src/Net.Update.cs` | Daily update check against GitHub Releases |
 | `src/Ui.*.cs` | The window, log grid, browser, settings and dialogs |
 | `LogVice.wxs` | WiX source for the MSI |
+| `policy/` | Administrative template (ADMX) for Intune and Group Policy |
 
 ## Known limitations
 

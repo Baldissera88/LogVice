@@ -82,7 +82,7 @@ namespace LogVice
         };
 
         BarPanel cmdBar, filterBar;
-        FluentButton bTheme, bHome, bOpen, bRecent, bBrowse, bMerge, bReload, bStop, bLive, bLookup, bFindPrev, bFindNext, bErrPrev, bErrNext, bSettings;
+        FluentButton bUpdate, bTheme, bHome, bOpen, bRecent, bBrowse, bMerge, bReload, bStop, bLive, bLookup, bFindPrev, bFindNext, bErrPrev, bErrNext, bSettings;
         FluentButton bExcl, bRegex, chipErr, chipWarn, chipInfo, bComp, bHl, bFrom, bTo, bClear;
         FluentTextBox tFind, tFilter, tThread;
         Panel content;
@@ -273,7 +273,9 @@ namespace LogVice
             bSettings = Btn(ButtonKind.Subtle, Glyph.Gear, "", "Settings and about (Ctrl+,)", delegate { if (viewKind == ViewKind.Settings) ShowView(ViewKind.Logs); else OpenSettings(0); });
 
             cmdBar.AddLeft(bHome, bOpen, bRecent, bBrowse, bMerge, bReload, bStop, new BarSep(), bLive, bLookup);
-            cmdBar.AddRight(tFind, bFindPrev, bFindNext, new BarSep(), bErrPrev, bErrNext, new BarSep(), bTheme, bSettings);
+            bUpdate = Btn(ButtonKind.Accent, Glyph.Live, "Update", "A newer version of LogVice is available", delegate { OpenSettings(2); });
+            bUpdate.Visible = false;
+            cmdBar.AddRight(tFind, bFindPrev, bFindNext, new BarSep(), bErrPrev, bErrNext, new BarSep(), bUpdate, bTheme, bSettings);
         }
 
         void BuildFilterBar()
@@ -698,6 +700,7 @@ namespace LogVice
             lastDir = Settings.Get("LastFolder");
             start.SetRecent(Settings.Recent());
             if (!eggMode) Discover();
+            if (!eggMode && Updates.Enabled && Updates.DueToday) Updates.CheckAsync(delegate (UpdateInfo r) { SafeInvoke(delegate { UpdateFound(r); }); });
             RefreshCounts();
             ShowStart();
             ShowDetails();
@@ -873,6 +876,17 @@ namespace LogVice
             status.Invalidate();
             noteTimer.Stop();
             noteTimer.Start();
+        }
+
+        void UpdateFound(UpdateInfo r)
+        {
+            settingsView.ShowUpdate(r);
+            if (r == null || !r.Newer) return;
+            bUpdate.Text = "Update " + r.Latest;
+            tips.SetToolTip(bUpdate, "LogVice " + r.Latest + " is available. Open About to download it.");
+            bUpdate.Visible = true;
+            cmdBar.PerformLayout();
+            Note("LogVice " + r.Latest + " is available.");
         }
 
         void SafeInvoke(Action a)

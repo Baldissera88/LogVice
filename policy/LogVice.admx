@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitions xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" revision="1.0" schemaVersion="1.0" xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions">
+  <policyNamespaces>
+    <target prefix="logvice" namespace="Baldissera88.Policies.LogVice" />
+    <using prefix="windows" namespace="Microsoft.Policies.Windows" />
+  </policyNamespaces>
+  <resources minRequiredRevision="1.0" />
+  <supportedOn>
+    <definitions>
+      <definition name="SUPPORTED_LogVice_1_5" displayName="$(string.SUPPORTED_LogVice_1_5)" />
+    </definitions>
+  </supportedOn>
+  <categories>
+    <category name="LogVice" displayName="$(string.LogVice)" />
+  </categories>
+  <policies>
+    <policy name="DisableUpdateCheck" class="Machine" displayName="$(string.DisableUpdateCheck)" explainText="$(string.DisableUpdateCheck_Help)" key="Software\Policies\LogVice" valueName="DisableUpdateCheck">
+      <parentCategory ref="LogVice" />
+      <supportedOn ref="SUPPORTED_LogVice_1_5" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+  </policies>
+</policyDefinitions>
