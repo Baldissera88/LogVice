@@ -482,6 +482,7 @@ namespace LogVice
                 new string[] { "Alt+Home", "Start page" },
                 new string[] { "Ctrl+O", "Open logs" },
                 new string[] { "Ctrl+B", "Browse logs" },
+                new string[] { "Ctrl+I", "Follow an item through every client log" },
                 new string[] { "Ctrl+Shift+O", "Merge in more logs" },
                 new string[] { "F5", "Reload" },
                 new string[] { "Ctrl+F", "Find" },

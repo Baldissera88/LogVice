@@ -21,6 +21,7 @@ namespace LogVice
             "F7      next highlight     Shift+F7       previous highlight\r\n" +
             "Ctrl+G  go to line         Alt+Home       start page\r\n" +
             "Ctrl+L  error lookup       F5             reload\r\n" +
+            "Ctrl+I  follow an item\r\n" +
             "Ctrl+C  copy rows          Ctrl+A         select all rows";
 
         Theme theme;
@@ -336,6 +337,7 @@ namespace LogVice
             start.Dock = DockStyle.Fill;
             start.OpenButton.Click += delegate { PickFiles(false, null); };
             start.BrowseButton.Click += delegate { OpenBrowse(null); };
+            start.FollowButton.Click += delegate { FollowItemDialog(null); };
             start.OpenLocation += delegate (LogLocation l) { OpenBrowse(l); };
             start.OpenRecent += delegate (string[] p) { OpenFiles(p, false, false); };
             start.ResumeButton.Click += delegate { LeaveHome(); };
@@ -462,6 +464,7 @@ namespace LogVice
             };
             browse.ElevateRequested += delegate { Elevate(OpenPaths()); };
             browse.Notice += delegate (string text) { Note(text); };
+            browse.FollowRequested += delegate (string pc) { FollowItemDialog(pc); };
             browse.HistoryChanged += delegate
             {
                 Settings.SetBool("AutoMerge", browse.IncludeHistory);
@@ -851,6 +854,7 @@ namespace LogVice
                 case Keys.Shift | Keys.F7: HlStep(-1); return true;
                 case Keys.Control | Keys.O: PickFiles(false, null); return true;
                 case Keys.Control | Keys.B: if (viewKind == ViewKind.Browse) ShowView(ViewKind.Logs); else OpenBrowse(null); return true;
+                case Keys.Control | Keys.I: FollowItemDialog(viewKind == ViewKind.Browse ? browse.Computer : null); return true;
                 case Keys.Control | Keys.Oemcomma: if (viewKind == ViewKind.Settings) ShowView(ViewKind.Logs); else OpenSettings(0); return true;
                 case Keys.Control | Keys.Shift | Keys.O: if (st.Sources.Count > 0) PickFiles(true, null); return true;
                 case Keys.Control | Keys.F: if (viewKind != ViewKind.Logs) ShowView(ViewKind.Logs); tFind.Box.Focus(); tFind.Box.SelectAll(); return true;
@@ -876,6 +880,31 @@ namespace LogVice
             status.Invalidate();
             noteTimer.Stop();
             noteTimer.Start();
+        }
+
+        void FollowItemDialog(string pc)
+        {
+            using (FollowForm f = new FollowForm(pc))
+            {
+                f.ApplyTheme(theme);
+                if (f.ShowDialog(this) != DialogResult.OK || f.Result == null || f.Result.Files.Count == 0) return;
+                ShowFollow(f.Chosen, f.Result);
+            }
+        }
+
+        void ShowFollow(FollowItem item, FollowResult r)
+        {
+            suppress = true;
+            try
+            {
+                bRegex.Checked = true;
+                tFilter.Text = r.Pattern;
+            }
+            finally { suppress = false; }
+            ApplyFilterText();
+            tFilter.Badge = "Following";
+            OpenFiles(r.Files.ToArray(), false, false);
+            Note("Following " + item.Name + ": " + r.Total.ToString("N0") + (r.Total == 1 ? " line in " : " lines in ") + r.Files.Count + (r.Files.Count == 1 ? " log" : " logs") + ". Clear the filter to see everything around it.");
         }
 
         void UpdateFound(UpdateInfo r)

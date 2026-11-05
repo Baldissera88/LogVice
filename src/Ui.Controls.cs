@@ -1030,7 +1030,7 @@ namespace LogVice
 
     public sealed class StartPage : FluentControl
     {
-        public readonly FluentButton OpenButton, BrowseButton, ResumeButton;
+        public readonly FluentButton OpenButton, BrowseButton, FollowButton, ResumeButton;
         public string Eyebrow;
         readonly List<LocationCard> cards = new List<LocationCard>();
         readonly List<RecentItem> recent = new List<RecentItem>();
@@ -1051,11 +1051,15 @@ namespace LogVice
             BrowseButton = new FluentButton(ButtonKind.Standard, Glyph.Browse, "Browse logs");
             BrowseButton.Tip = "Find ConfigMgr, Intune and Windows logs on this or another computer (Ctrl+B)";
             BrowseButton.Width = BrowseButton.GetPreferredSize(Size.Empty).Width;
+            FollowButton = new FluentButton(ButtonKind.Standard, Glyph.Search, "Follow an item");
+            FollowButton.Tip = "Pick an app, update, package or baseline from the ConfigMgr client and see every log line about it in one timeline (Ctrl+I)";
+            FollowButton.Width = FollowButton.GetPreferredSize(Size.Empty).Width;
             ResumeButton = new FluentButton(ButtonKind.Standard, Glyph.Back, "Back to the log");
             ResumeButton.Tip = "Return to the logs that are open (Esc)";
             ResumeButton.Visible = false;
             Controls.Add(OpenButton);
             Controls.Add(BrowseButton);
+            Controls.Add(FollowButton);
             Controls.Add(ResumeButton);
         }
 
@@ -1082,6 +1086,7 @@ namespace LogVice
             {
                 yield return OpenButton;
                 yield return BrowseButton;
+                yield return FollowButton;
                 yield return ResumeButton;
             }
         }
@@ -1178,7 +1183,8 @@ namespace LogVice
             int recentBlock = recent.Count > 0 ? Dpi.S(28) + Fonts.SmallSemibold.Height + Dpi.S(8) + recent.Count * itemH : 0;
             int footH = Draw.WrapHeight(Foot, Fonts.Small, cw);
             int total = Dpi.S(64) + Dpi.S(18) + Fonts.SmallSemibold.Height + Dpi.S(4) + Fonts.Hero.Height + Dpi.S(8) + descH + Dpi.S(20) + OpenButton.Height + locBlock + recentBlock + Dpi.S(28) + footH + Dpi.S(28);
-            if (ResumeButton.Visible && x0 + OpenButton.Width + BrowseButton.Width + Dpi.S(16) + ResumeButton.Width > x0 + cw) total += OpenButton.Height + Dpi.S(8);
+            int rowW = OpenButton.Width + BrowseButton.Width + FollowButton.Width + Dpi.S(16);
+            if (ResumeButton.Visible && x0 + rowW + Dpi.S(8) + ResumeButton.Width > x0 + cw) total += OpenButton.Height + Dpi.S(8);
             contentH = total + Dpi.S(28);
             int max = Math.Max(0, contentH - Height);
             if (scrollY > max) scrollY = max;
@@ -1191,9 +1197,10 @@ namespace LogVice
             y += descH + Dpi.S(20);
             OpenButton.SetBounds(x0, y, OpenButton.Width, OpenButton.Height);
             BrowseButton.SetBounds(x0 + OpenButton.Width + Dpi.S(8), y, BrowseButton.Width, BrowseButton.Height);
+            FollowButton.SetBounds(BrowseButton.Right + Dpi.S(8), y, FollowButton.Width, FollowButton.Height);
             if (ResumeButton.Visible)
             {
-                int rx = x0 + OpenButton.Width + BrowseButton.Width + Dpi.S(16);
+                int rx = x0 + rowW + Dpi.S(8);
                 if (rx + ResumeButton.Width > x0 + cw) { y += OpenButton.Height + Dpi.S(8); rx = x0; }
                 ResumeButton.SetBounds(rx, y, Math.Min(ResumeButton.Width, cw), ResumeButton.Height);
             }

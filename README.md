@@ -30,6 +30,7 @@ It is one small exe with no installer requirement and nothing to configure. An M
 - **Large files, fast.** Logs are read in the background and only the visible rows are drawn, so a 500 MB log opens without freezing the window.
 - **All the usual formats.** CMTrace (ConfigMgr and Intune IME), SMS trace, CBS, DISM and Panther, Windows Update ETL traces, and any plain text log with timestamps. UTF-8, UTF-16 and ANSI are detected.
 - **Windows event logs.** Open exported `.evtx` files, or read live channels such as Application, System, Security, Intune MDM (DeviceManagement-Enterprise-Diagnostics-Provider), Entra, Autopilot and Windows Update, on this computer or another one. Errors and warnings are marked like in CMTrace.
+- **Follow an item.** Pick an application, deployment type, software update, package, configuration baseline or Intune app from the ConfigMgr client, and LogVice shows every line about it from every client log in one timeline: policy, discovery, content download, install and detection.
 - **One timeline across sources.** Merge an Intune IME log with the MDM event log, or AppEnforce.log with the Application log, and read them by time.
 - **Browse logs.** Finds ConfigMgr site server, management point, distribution point, console, client, client setup and task sequence logs, Intune Management Extension logs, Windows logs and event logs for you, on this computer or another one.
 - **Connect as.** Read logs on a server with your admin account, without Run as or a second session.
@@ -122,6 +123,19 @@ LogVice.exe C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\IntuneManage
 
 You can also drag files onto the window. Hold Ctrl while dropping to merge them into what is open.
 
+### Follow an item
+
+Press **Ctrl+I**, or select **Follow an item** on the start page or in Browse logs.
+
+1. LogVice lists what the ConfigMgr client knows: applications, software updates, packages and programs, and configuration baselines from the client's WMI, plus deployment types, updates, programs and Intune Win32 apps it finds in the logs.
+2. Pick one. LogVice collects its IDs, such as the application and deployment type IDs, the update ID and KB number, or the package ID.
+3. It searches every log in `CCM\Logs`, `ccmsetup\Logs`, `SMSTSLog` and the Intune Management Extension logs, including rolled-over parts. Content IDs and download job IDs it finds on the way (CAS, ContentTransferManager, DataTransferService, BITS) are followed too.
+4. The logs with matches open merged by time, filtered to the lines about that item. Clear the filter to see everything around them.
+
+**Also find lines that only mention the name** also matches the item's display name, which catches lines without an ID but can include other items with similar names.
+
+In Browse logs, Follow an item works on the computer you are connected to, through its admin shares and WMI. Reading the client's WMI on another computer needs the Windows Management Instrumentation firewall rules on it. Without WMI, LogVice lists what it finds in the logs.
+
 ### Event logs
 
 In Browse logs, the **Event logs** group has two entries:
@@ -148,6 +162,7 @@ Live view follows channels on this computer. Reading another computer's event lo
 |---|---|
 | Ctrl+O | Open logs |
 | Ctrl+B | Browse logs |
+| Ctrl+I | Follow an item |
 | Ctrl+Shift+O | Merge in more logs |
 | Alt+Home | Start page |
 | Ctrl+F | Find |
@@ -213,6 +228,7 @@ To make a new release:
 | `src/Logs.Locations.cs` | Log discovery and auto-merge of spanned logs |
 | `src/Net.Remote.cs` | Connect as: Windows sign-in dialog and SMB session |
 | `src/Net.Update.cs` | Daily update check against GitHub Releases |
+| `src/Logs.Follow.cs`, `src/Ui.Follow.cs` | Follow an item: client WMI, log discovery and the search across logs |
 | `src/Ui.*.cs` | The window, log grid, browser, settings and dialogs |
 | `LogVice.wxs` | WiX source for the MSI |
 | `policy/` | Administrative template (ADMX) for Intune and Group Policy |

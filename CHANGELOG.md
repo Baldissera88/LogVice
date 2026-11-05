@@ -6,7 +6,7 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 
 | Version | Highlights | Upgrade |
 |---|---|---|
-| **1.5.0** (latest) | Update check with an Update button, ADMX policy to turn it off, releases built and checksummed by GitHub Actions | Run the MSI. It replaces Trace Lens and any earlier version |
+| **1.5.0** (latest) | Follow an item through every client log, update check with ADMX policy, releases built by GitHub Actions | Run the MSI. It replaces Trace Lens and any earlier version |
 | 1.4.0 | New name LogVice, Windows event logs (live channels, remote computers and .evtx files) | |
 | 1.3.2 | Theme button in the toolbar, asks for administrator rights when a log needs them, more reliable Connect as | |
 | 1.3.1 | Sharper, easier-to-read look: striped rows, colour bars, clearer timestamps, larger detail text | |
@@ -18,7 +18,7 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 
 ## LogVice 1.5.0
 
-LogVice 1.5.0 tells you when a newer version is out, and its releases are now built by GitHub Actions with checksums and a provenance attestation.
+LogVice 1.5.0 follows one application, update, package or baseline through every ConfigMgr client log, tells you when a newer version is out, and is now built by GitHub Actions with checksums and a provenance attestation.
 
 | | |
 |---|---|
@@ -28,6 +28,7 @@ LogVice 1.5.0 tells you when a newer version is out, and its releases are now bu
 
 ### New in 1.5.0
 
+- **Follow an item** (Ctrl+I, the start page or Browse logs): pick an application, deployment type, software update, package, configuration baseline or Intune Win32 app. LogVice reads them from the ConfigMgr client's WMI and from the logs, collects the item's IDs, searches every client and Intune Management Extension log, follows content and download job IDs it finds on the way, and opens the matching logs merged by time and filtered to that item. Works on this computer and on a computer you connect to in Browse logs.
 - **Update check**: once a day at start, LogVice asks GitHub for the latest release. When there is a newer one, an **Update** button appears in the toolbar and About shows a **Download** button. Nothing about you or your logs is sent, and the Windows proxy settings are used.
 - **Settings > Updates** turns the check on or off, and **About > Updates** has **Check now**.
 - **Policy**: `DisableUpdateCheck = 1` (DWORD) under `HKLM\SOFTWARE\Policies\LogVice` turns the check off for everyone. An administrative template for Intune and Group Policy is in `policy/`.
@@ -241,7 +242,7 @@ In Intune or ConfigMgr, add 1.5.0 as a new app that supersedes the earlier versi
 
 | Version | Released | Summary |
 | --- | --- | --- |
-| 1.5.0 | 5 Nov 2026 | Update check with Update button and ADMX policy; releases built by GitHub Actions with checksums and attestation |
+| 1.5.0 | 5 Nov 2026 | Follow an item through every client log; update check with Update button and ADMX policy; releases built by GitHub Actions |
 | 1.4.0 | 5 Nov 2026 | New name LogVice (was Trace Lens); Windows event logs: live channels, remote computers and .evtx files; settings carried over |
 | 1.3.2 | 5 Nov 2026 | Theme button, administrator prompt for protected logs, Connect as fixes, a new secret |
 | 1.3.1 | 4 Nov 2026 | Sharper, easier-to-read look: striped rows, colour bars, clearer timestamps, larger detail text, new start page |

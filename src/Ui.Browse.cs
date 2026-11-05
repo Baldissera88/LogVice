@@ -57,7 +57,7 @@ namespace LogVice
     public sealed class BrowseView : Panel, IThemed
     {
         readonly BarPanel header, tools, footer;
-        readonly FluentButton bBack, bConnect, bConnectAs, bLocal, bHistory, bRefresh, bExplorer, bOpen, bMerge, bAll, bElevate;
+        readonly FluentButton bBack, bFollow, bConnect, bConnectAs, bLocal, bHistory, bRefresh, bExplorer, bOpen, bMerge, bAll, bElevate;
         readonly FluentTextBox tComputer, tFilter;
         readonly TitleText title, locTitle, info;
         readonly CardPanel card;
@@ -68,11 +68,13 @@ namespace LogVice
         List<LogLocation> localCache;
         int gen;
         public Func<List<string>> CustomFolders;
+        public string Computer { get { return computer; } }
         public event Action<string[], bool> OpenRequested;
         public event EventHandler BackRequested;
         public event EventHandler HistoryChanged;
         public event EventHandler ElevateRequested;
         public event Action<string> Notice;
+        public event Action<string> FollowRequested;
 
         readonly ToolTip tips;
 
@@ -103,8 +105,11 @@ namespace LogVice
             bLocal = Btn(ButtonKind.Subtle, Glyph.Computer, "This computer", "Show logs on this computer", tips);
             bLocal.Click += delegate { tComputer.Text = ""; ShowFor("", localCache, null); };
             bLocal.Visible = false;
+            bFollow = Btn(ButtonKind.Standard, Glyph.Search, "Follow an item", "Pick an app, deployment type, update, package or baseline from this computer's ConfigMgr client, and see every log line about it in one timeline (Ctrl+I)", tips);
+            bFollow.CanCompact = true;
+            bFollow.Click += delegate { if (FollowRequested != null) FollowRequested(computer); };
             header.AddLeft(bBack, title);
-            header.AddRight(bLocal, tComputer, bConnect, bConnectAs);
+            header.AddRight(bFollow, new BarSep(), bLocal, tComputer, bConnect, bConnectAs);
 
             card = new CardPanel();
             card.Dock = DockStyle.Fill;
