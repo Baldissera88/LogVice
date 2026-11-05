@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="LogVice"
+           Language="1033"
+           Codepage="1252"
+           Version="1.4.0"
+           Manufacturer="Daniel L. Baldissera"
+           UpgradeCode="2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3">
+
+    <Package InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perMachine"
+             Description="LogVice log viewer"
+             Comments="Log viewer for ConfigMgr, Intune and Windows logs" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of LogVice is already installed." />
+
+    <Media Id="1" Cabinet="tracelens.cab" EmbedCab="yes" />
+
+    <Property Id="NETFX4RELEASE">
+      <RegistrySearch Id="NetFx4Release" Root="HKLM" Key="SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full" Name="Release" Type="raw" Win64="yes" />
+    </Property>
+    <Condition Message="LogVice needs .NET Framework 4.5 or later.">Installed OR NETFX4RELEASE</Condition>
+
+    <Icon Id="LogVice.ico" SourceFile="LogVice.ico" />
+    <Property Id="ARPPRODUCTICON" Value="LogVice.ico" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLDIR" Name="LogVice">
+
+          <Component Id="LogViceExe" Guid="A8137363-CC1A-43A5-ADB4-612F6292C370" Win64="yes">
+            <File Id="LogViceExe" Name="LogVice.exe" Source="LogVice.exe" KeyPath="yes" DefaultVersion="1.4.0.0">
+              <Shortcut Id="StartMenuShortcut"
+                        Directory="ProgramMenuFolder"
+                        Name="LogVice"
+                        Description="Log viewer for ConfigMgr, Intune and Windows logs"
+                        WorkingDirectory="INSTALLDIR" />
+            </File>
+          </Component>
+
+          <Component Id="Registration" Guid="30ED92DC-FC99-4EC0-918F-8827A9622193" Win64="yes">
+            <RegistryValue Root="HKLM" Key="Software\LogVice" Name="InstallDir" Type="string" Value="[INSTALLDIR]" KeyPath="yes" />
+            <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\LogVice.exe" Type="string" Value="[INSTALLDIR]LogVice.exe" />
+            <RegistryValue Root="HKLM" Key="Software\Classes\LogVice.LogFile" Type="string" Value="Log file" />
+            <RegistryValue Root="HKLM" Key="Software\Classes\LogVice.LogFile\DefaultIcon" Type="string" Value="&quot;[INSTALLDIR]LogVice.exe&quot;,0" />
+            <RegistryValue Root="HKLM" Key="Software\Classes\LogVice.LogFile\shell\open\command" Type="string" Value="&quot;[INSTALLDIR]LogVice.exe&quot; &quot;%1&quot;" />
+            <RegistryValue Root="HKLM" Key="Software\Classes\.log\OpenWithProgids" Name="LogVice.LogFile" Type="string" Value="" />
+            <RegistryValue Root="HKLM" Key="Software\Classes\.lo_\OpenWithProgids" Name="LogVice.LogFile" Type="string" Value="" />
+            <RegistryValue Root="HKLM" Key="Software\Classes\.etl\OpenWithProgids" Name="LogVice.LogFile" Type="string" Value="" />
+            <RegistryValue Root="HKLM" Key="Software\Classes\.evtx\OpenWithProgids" Name="LogVice.LogFile" Type="string" Value="" />
+          </Component>
+
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder" />
+    </Directory>
+
+    <Feature Id="Main" Title="LogVice" Level="1">
+      <ComponentRef Id="LogViceExe" />
+      <ComponentRef Id="Registration" />
+    </Feature>
+  </Product>
+</Wix>
