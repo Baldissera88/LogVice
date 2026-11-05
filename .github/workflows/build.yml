@@ -21,9 +21,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Mono and msitools
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends mono-devel wixl msitools
+          sudo rm -f /var/lib/man-db/auto-update
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends mono-devel wixl msitools
 
       - name: Build LogVice.exe and LogVice.msi
         run: ./package.sh
