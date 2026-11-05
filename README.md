@@ -134,6 +134,8 @@ Press **Ctrl+I**, or select **Follow an item** on the start page or in Browse lo
 
 **Also find lines that only mention the name** also matches the item's display name, which catches lines without an ID but can include other items with similar names.
 
+The idea, and the description of how it could work, came from [u/overlydelicioustea](https://www.reddit.com/user/overlydelicioustea/) on r/SCCM. Thank you!
+
 In Browse logs, Follow an item works on the computer you are connected to, through its admin shares and WMI. Reading the client's WMI on another computer needs the Windows Management Instrumentation firewall rules on it. Without WMI, LogVice lists what it finds in the logs.
 
 ### Event logs

@@ -28,7 +28,7 @@ LogVice 1.5.0 follows one application, update, package or baseline through every
 
 ### New in 1.5.0
 
-- **Follow an item** (Ctrl+I, the start page or Browse logs): pick an application, deployment type, software update, package, configuration baseline or Intune Win32 app. LogVice reads them from the ConfigMgr client's WMI and from the logs, collects the item's IDs, searches every client and Intune Management Extension log, follows content and download job IDs it finds on the way, and opens the matching logs merged by time and filtered to that item. Works on this computer and on a computer you connect to in Browse logs.
+- **Follow an item** (Ctrl+I, the start page or Browse logs): pick an application, deployment type, software update, package, configuration baseline or Intune Win32 app. LogVice reads them from the ConfigMgr client's WMI and from the logs, collects the item's IDs, searches every client and Intune Management Extension log, follows content and download job IDs it finds on the way, and opens the matching logs merged by time and filtered to that item. Works on this computer and on a computer you connect to in Browse logs. Thanks to [u/overlydelicioustea](https://www.reddit.com/user/overlydelicioustea/) on r/SCCM for the idea and for describing how it could work: collect every reference to one item, search all client logs for them, and put the result in one timeline.
 - **Update check**: once a day at start, LogVice asks GitHub for the latest release. When there is a newer one, an **Update** button appears in the toolbar and About shows a **Download** button. Nothing about you or your logs is sent, and the Windows proxy settings are used.
 - **Settings > Updates** turns the check on or off, and **About > Updates** has **Check now**.
 - **Policy**: `DisableUpdateCheck = 1` (DWORD) under `HKLM\SOFTWARE\Policies\LogVice` turns the check off for everyone. An administrative template for Intune and Group Policy is in `policy/`.
@@ -37,7 +37,7 @@ LogVice 1.5.0 follows one application, update, package or baseline through every
 
 ## LogVice 1.4.0
 
-LogVice 1.4.0, released on 5 November 2026, gives Trace Lens a new name and adds Windows event logs.
+LogVice 1.4.0 gives Trace Lens a new name and adds Windows event logs.
 
 | | |
 |---|---|
@@ -69,7 +69,7 @@ LogVice 1.4.0, released on 5 November 2026, gives Trace Lens a new name and adds
 
 ## Trace Lens 1.3.2
 
-Trace Lens 1.3.2, released on 5 November 2026, adds a theme button, asks for administrator rights when a log needs them, and makes Connect as easier to use and more reliable.
+Trace Lens 1.3.2 adds a theme button, asks for administrator rights when a log needs them, and makes Connect as easier to use and more reliable.
 
 ### New in 1.3.2
 
@@ -88,7 +88,7 @@ Trace Lens 1.3.2, released on 5 November 2026, adds a theme button, asks for adm
 
 ## Trace Lens 1.3.1
 
-Trace Lens 1.3.1, released on 4 November 2026, gives Trace Lens a sharper Windows 11 and Windows Server 2025 look that is easier to read in long sessions. Features and settings work exactly as in 1.3.0.
+Trace Lens 1.3.1 gives Trace Lens a sharper Windows 11 and Windows Server 2025 look that is easier to read in long sessions. Features and settings work exactly as in 1.3.0.
 
 - **Striped rows**: every other row has a faint stripe, so your eye stays on the line across wide logs.
 - **Colour bars**: errors and warnings get a red or amber bar at the left edge as well as the tint. Highlight rules show their own colour there.
@@ -103,7 +103,7 @@ Trace Lens 1.3.1, released on 4 November 2026, gives Trace Lens a sharper Window
 
 ## Trace Lens 1.3.0
 
-Trace Lens 1.3.0, released on 4 November 2026, reads Windows Update ETL logs, lets you connect to other computers with another account, and adds your own highlight colours, line numbers, a Home button and clickable error codes. The MSI upgrades every earlier version in place.
+Trace Lens 1.3.0 reads Windows Update ETL logs, lets you connect to other computers with another account, and adds your own highlight colours, line numbers, a Home button and clickable error codes. The MSI upgrades every earlier version in place.
 
 ### New in 1.3.0
 
@@ -128,14 +128,14 @@ Trace Lens 1.3.0, released on 4 November 2026, reads Windows Update ETL logs, le
 
 ## Trace Lens 1.2.2
 
-Trace Lens 1.2.2, released on 4 November 2026, gives Trace Lens a new 1980s-style logo: a synthwave sun setting over a neon grid. Logs open, read and filter exactly as in 1.2.1, and the MSI upgrades every earlier version in place.
+Trace Lens 1.2.2 gives Trace Lens a new 1980s-style logo: a synthwave sun setting over a neon grid. Logs open, read and filter exactly as in 1.2.1, and the MSI upgrades every earlier version in place.
 
 - **New logo**: on the exe and MSI icon, in the title bar and taskbar, on the start page and in About. Each icon size from 16 px to 256 px is drawn for its size, so the logo stays sharp in Explorer, the Start menu and Programs and Features.
 - **Logo for app catalogs**: `TraceLens-logo-512.png`, a 512 × 512 px PNG, comes with the release for the app icon in Intune, the Company Portal and Software Center.
 
 ## Trace Lens 1.2.1
 
-Trace Lens 1.2.1, released on 4 November 2026, fixes an error after changing the log text size and names the developer in About. Everyone on 1.2.0 should upgrade.
+Trace Lens 1.2.1 fixes an error after changing the log text size and names the developer in About. Everyone on 1.2.0 should upgrade.
 
 - **Fixed**: changing **Log text size** in Settings and going back to the log view showed an error message, and parts of the toolbar stopped drawing.
 - **Developer and publisher**: About shows "Developed by Daniel L. Baldissera". The exe and the MSI now name Daniel L. Baldissera as company and publisher, so Programs and Features shows him as the publisher.
@@ -144,7 +144,7 @@ Trace Lens 1.2.1, released on 4 November 2026, fixes an error after changing the
 
 ## Trace Lens 1.2.0
 
-Trace Lens 1.2.0, released on 4 November 2026, finds ConfigMgr, Intune and Windows logs for you, on this computer or another one, and adds a Settings and About page. The MSI upgrades 1.0.0 and 1.1.0 in place.
+Trace Lens 1.2.0 finds ConfigMgr, Intune and Windows logs for you, on this computer or another one, and adds a Settings and About page. The MSI upgrades 1.0.0 and 1.1.0 in place.
 
 ### New in 1.2.0
 
@@ -166,7 +166,7 @@ Trace Lens 1.2.0, released on 4 November 2026, finds ConfigMgr, Intune and Windo
 
 ## Trace Lens 1.1.0
 
-Trace Lens 1.1.0, released on 4 November 2026, brings a redesigned interface in the Windows 11 and Windows Server 2025 style, with light and dark themes. It also speeds up everyday log work with a start page, recent files, right-click actions on rows and keyboard jumps between errors.
+Trace Lens 1.1.0 brings a redesigned interface in the Windows 11 and Windows Server 2025 style, with light and dark themes. It also speeds up everyday log work with a start page, recent files, right-click actions on rows and keyboard jumps between errors.
 
 Reading, filtering, merging, live tail and error lookup work as in 1.0.0. Logs open the same way, and the MSI upgrades 1.0.0 in place.
 
@@ -240,15 +240,15 @@ In Intune or ConfigMgr, add 1.5.0 as a new app that supersedes the earlier versi
 
 ## Version history
 
-| Version | Released | Summary |
-| --- | --- | --- |
-| 1.5.0 | 5 Nov 2026 | Follow an item through every client log; update check with Update button and ADMX policy; releases built by GitHub Actions |
-| 1.4.0 | 5 Nov 2026 | New name LogVice (was Trace Lens); Windows event logs: live channels, remote computers and .evtx files; settings carried over |
-| 1.3.2 | 5 Nov 2026 | Theme button, administrator prompt for protected logs, Connect as fixes, a new secret |
-| 1.3.1 | 4 Nov 2026 | Sharper, easier-to-read look: striped rows, colour bars, clearer timestamps, larger detail text, new start page |
-| 1.3.0 | 4 Nov 2026 | Windows Update ETL logs, Home button, Connect as, auto-merge of spanned logs, error codes as links, highlight rules and line numbers |
-| 1.2.2 | 4 Nov 2026 | New 1980s synthwave logo on the icon, window, start page and About; 512 px PNG for app catalogs |
-| 1.2.1 | 4 Nov 2026 | Fix for changing the log text size; developer and publisher named; magic numbers in Error lookup |
-| 1.2.0 | 4 Nov 2026 | Browse logs with automatic ConfigMgr, Intune and Windows log discovery, on this or another computer; Settings and About |
-| 1.1.0 | 4 Nov 2026 | Fluent redesign with light and dark themes, start page, recent files, drop zones, right-click actions and F8 error navigation |
-| 1.0.0 | 4 Nov 2026 | First release: CMTrace, SMS trace, CBS and plain text logs, background loading, merge by time, filters, find, live tail, error lookup, and the portable exe, MSI and PowerShell script |
+| Version | Summary |
+| --- | --- |
+| 1.5.0 | Follow an item through every client log; update check with Update button and ADMX policy; releases built by GitHub Actions |
+| 1.4.0 | New name LogVice (was Trace Lens); Windows event logs: live channels, remote computers and .evtx files; settings carried over |
+| 1.3.2 | Theme button, administrator prompt for protected logs, Connect as fixes, a new secret |
+| 1.3.1 | Sharper, easier-to-read look: striped rows, colour bars, clearer timestamps, larger detail text, new start page |
+| 1.3.0 | Windows Update ETL logs, Home button, Connect as, auto-merge of spanned logs, error codes as links, highlight rules and line numbers |
+| 1.2.2 | New 1980s synthwave logo on the icon, window, start page and About; 512 px PNG for app catalogs |
+| 1.2.1 | Fix for changing the log text size; developer and publisher named; magic numbers in Error lookup |
+| 1.2.0 | Browse logs with automatic ConfigMgr, Intune and Windows log discovery, on this or another computer; Settings and About |
+| 1.1.0 | Fluent redesign with light and dark themes, start page, recent files, drop zones, right-click actions and F8 error navigation |
+| 1.0.0 | First release: CMTrace, SMS trace, CBS and plain text logs, background loading, merge by time, filters, find, live tail, error lookup, and the portable exe, MSI and PowerShell script |
