@@ -6,7 +6,8 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 
 | Version | Highlights | Upgrade |
 |---|---|---|
-| **1.5.0** (latest) | Follow an item through every client log, update check with ADMX policy, releases built by GitHub Actions | Run the MSI. It replaces Trace Lens and any earlier version |
+| **1.5.1** (latest) | Faster loading, filtering and Follow an item, automatic tests | Run the MSI. It replaces Trace Lens and any earlier version |
+| 1.5.0 | Follow an item through every client log, update check with ADMX policy, releases built by GitHub Actions | |
 | 1.4.0 | New name LogVice, Windows event logs (live channels, remote computers and .evtx files) | |
 | 1.3.2 | Theme button in the toolbar, asks for administrator rights when a log needs them, more reliable Connect as | |
 | 1.3.1 | Sharper, easier-to-read look: striped rows, colour bars, clearer timestamps, larger detail text | |
@@ -15,6 +16,25 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 | 1.1.0 | Windows 11 style with light and dark themes | |
 
 ![LogVice log view](docs/images/log-light.png)
+
+## LogVice 1.5.1
+
+LogVice 1.5.1 loads, filters and follows items faster, and every build is now tested automatically.
+
+| | |
+|---|---|
+| Product code | `{6F8A9909-3D0A-40F6-9C43-8E3FA7DD7BFD}` |
+| Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (unchanged) |
+| Files | `LogVice.msi`, `LogVice.exe`, `SHA256SUMS.txt` |
+
+### Improved in 1.5.1
+
+- **Faster loading**: CMTrace logs are parsed without temporary strings for the time, date, type, thread, component and file fields, which makes large logs load about 15 to 20 percent faster.
+- **Several logs at once**: when you open or merge several logs, they are read in parallel, one per processor core, which helps most with many logs and with logs on another computer.
+- **Filters, Find and highlight rules** run across all processor cores.
+- **Follow an item** searches each log once per ID, in parallel, and is about 5 times faster.
+- **Less memory**: spare memory is released after a log has loaded.
+- **Tests**: every build runs parser, merge and Follow an item tests on small synthetic logs, so a change in how a log is read is caught before release.
 
 ## LogVice 1.5.0
 
@@ -33,8 +53,6 @@ LogVice 1.5.0 follows one application, update, package or baseline through every
 - **Settings > Updates** turns the check on or off, and **About > Updates** has **Check now**.
 - **Policy**: `DisableUpdateCheck = 1` (DWORD) under `HKLM\SOFTWARE\Policies\LogVice` turns the check off for everyone. An administrative template for Intune and Group Policy is in `policy/`.
 - **Builds by GitHub Actions**: releases are built from the source in the repository, with `SHA256SUMS.txt` and a build provenance attestation you can check with `gh attestation verify`.
-- **Faster**: CMTrace logs are parsed without temporary strings for the time, date, type, thread, component and file fields. Several logs open in parallel, one per processor core. Filters, Find and highlight rules run across all cores. Follow an item searches each log once per ID, in parallel, and about 5 times faster. Spare memory is released after a log has loaded.
-- **Tests**: the build runs a set of parser, merge and Follow an item tests on small synthetic logs.
 - **Fixed product code per version**: the product code is set in `LogVice.wxs`, so it is known before the build and stays the same if a release is rebuilt.
 
 ## LogVice 1.4.0
@@ -203,13 +221,14 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 
 | Package | How to upgrade from an earlier version |
 | --- | --- |
-| LogVice.msi | Run the 1.5.0 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
+| LogVice.msi | Run the 1.5.1 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
 | LogVice.exe (portable) | Delete TraceLens.exe and use LogVice.exe. Your settings are copied on first start |
 
 | MSI setting | Value |
 | --- | --- |
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {902113B3-B6C9-45F4-8F0D-EB8CC84629A5} /qn` |
+| Uninstall command | `msiexec /x {6F8A9909-3D0A-40F6-9C43-8E3FA7DD7BFD} /qn` |
+| Product code (1.5.1) | `{6F8A9909-3D0A-40F6-9C43-8E3FA7DD7BFD}` |
 | Product code (1.5.0) | `{902113B3-B6C9-45F4-8F0D-EB8CC84629A5}` |
 | Product code (1.4.0) | `{2BDC8F66-2461-46EE-AA50-3264BCC5F34A}` |
 | Product code (1.3.2) | `{77F03080-EDFC-44B9-B5E7-BE515EA07AEE}` |
@@ -224,7 +243,7 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 | Install context | System, per machine |
 | Restart | Not needed |
 
-In Intune or ConfigMgr, add 1.5.0 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
+In Intune or ConfigMgr, add 1.5.1 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
 
 ## Known limitations
 
@@ -244,6 +263,7 @@ In Intune or ConfigMgr, add 1.5.0 as a new app that supersedes the earlier versi
 
 | Version | Summary |
 | --- | --- |
+| 1.5.1 | Faster loading, parallel reading of several logs, parallel filters and Find, Follow an item about 5 times faster, automatic tests |
 | 1.5.0 | Follow an item through every client log; update check with Update button and ADMX policy; releases built by GitHub Actions |
 | 1.4.0 | New name LogVice (was Trace Lens); Windows event logs: live channels, remote computers and .evtx files; settings carried over |
 | 1.3.2 | Theme button, administrator prompt for protected logs, Connect as fixes, a new secret |

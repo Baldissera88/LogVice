@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 1.5.0" src="https://img.shields.io/badge/version-1.5.0-005fb8">
+  <img alt="Version 1.5.1" src="https://img.shields.io/badge/version-1.5.1-005fb8">
   <a href="../../actions/workflows/build.yml"><img alt="Build" src="../../actions/workflows/build.yml/badge.svg"></a>
   <img alt="Windows 10, 11 and Server 2016 or later" src="https://img.shields.io/badge/Windows-10%20%7C%2011%20%7C%20Server%202016%2B-0078d4">
   <img alt=".NET Framework 4.8 included in Windows" src="https://img.shields.io/badge/.NET%20Framework-4.8%20(in%20Windows)-512bd4">
@@ -87,8 +87,8 @@ The MSI installs per machine, needs no restart and upgrades any earlier version 
 | Setting | Value |
 |---|---|
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {902113B3-B6C9-45F4-8F0D-EB8CC84629A5} /qn` |
-| Detection | MSI product code `{902113B3-B6C9-45F4-8F0D-EB8CC84629A5}` (version 1.5.0) |
+| Uninstall command | `msiexec /x {6F8A9909-3D0A-40F6-9C43-8E3FA7DD7BFD} /qn` |
+| Detection | MSI product code `{6F8A9909-3D0A-40F6-9C43-8E3FA7DD7BFD}` (version 1.5.1) |
 | Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (the same for every version) |
 | Install context | System |
 
@@ -223,7 +223,7 @@ To make a new release:
 
 1. Raise the version in `src/AssemblyInfo.cs` and `LogVice.wxs`, and give `Product Id` in `LogVice.wxs` a new GUID.
 2. Add the version to `CHANGELOG.md` and push.
-3. Create a release on GitHub with the tag `v<version>`, for example `v1.5.0`. The workflow stops if the tag and the version in `LogVice.wxs` differ.
+3. Create a release on GitHub with the tag `v<version>`, for example `v1.5.1`. The workflow stops if the tag and the version in `LogVice.wxs` differ.
 
 | Path | Contents |
 |---|---|
