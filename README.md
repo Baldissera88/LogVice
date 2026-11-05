@@ -60,7 +60,6 @@ Get the latest version from [Releases](../../releases). Pick the package that su
 |---|---|
 | `LogVice.msi` | You deploy to many devices with Intune or ConfigMgr. Installs per machine, adds a Start menu shortcut and *Open with* for `.log`, `.lo_`, `.etl` and `.evtx` |
 | `LogVice.exe` | You want a portable tool on a USB stick, a share or a jump server. No install needed |
-| `LogVice.ps1` | Only scripts are allowed. Compiles the same viewer at start with Windows PowerShell 5.1 |
 
 ### Requirements
 
