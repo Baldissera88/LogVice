@@ -196,7 +196,7 @@ Reading, filtering, merging, live tail and error lookup work as in 1.0.0. Logs o
 
 ## Install and upgrade
 
-LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later, with .NET Framework 4.5 or later.
+LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on the .NET Framework that comes with Windows: 4.8 or 4.8.1, or 4.6.2 on Windows Server 2016.
 
 | Package | How to upgrade from an earlier version |
 | --- | --- |

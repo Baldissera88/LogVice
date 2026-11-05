@@ -12,7 +12,7 @@
   <img alt="Version 1.5.0" src="https://img.shields.io/badge/version-1.5.0-005fb8">
   <a href="../../actions/workflows/build.yml"><img alt="Build" src="../../actions/workflows/build.yml/badge.svg"></a>
   <img alt="Windows 10, 11 and Server 2016 or later" src="https://img.shields.io/badge/Windows-10%20%7C%2011%20%7C%20Server%202016%2B-0078d4">
-  <img alt=".NET Framework 4.5 or later" src="https://img.shields.io/badge/.NET%20Framework-4.5%2B-512bd4">
+  <img alt=".NET Framework 4.8 included in Windows" src="https://img.shields.io/badge/.NET%20Framework-4.8%20(in%20Windows)-512bd4">
   <img alt="No dependencies" src="https://img.shields.io/badge/dependencies-none-0f7b0f">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-6b4fbb"></a>
 </p>
@@ -74,7 +74,10 @@ gh attestation verify .\LogVice.msi -R Baldissera88/LogVice
 ### Requirements
 
 - Windows 10, Windows 11 or Windows Server 2016 or later
-- .NET Framework 4.5 or later (included in all supported Windows versions)
+- .NET Framework 4.8 or 4.8.1, which is part of every supported Windows version and supported for as long as Windows is. Nothing extra to install
+- Windows Server 2016 with its built-in .NET Framework 4.6.2 also works
+
+LogVice is compiled against the .NET Framework 4.5 API so the same exe runs on every .NET Framework 4.x a machine has. It does not need, or install, the retired 4.5 runtime.
 
 ## Deploy with Intune or ConfigMgr
 
@@ -230,7 +233,7 @@ See [CHANGELOG.md](CHANGELOG.md) for every version.
 
 ## Contributing
 
-Bug reports, log samples that do not parse well, and ideas are welcome in [Issues](../../issues). Remove computer names, user names and other private data from logs before you attach them. Pull requests are welcome too. Please keep to C# 5 and .NET Framework 4.5 so LogVice keeps running on every supported Windows version without extra installs.
+Bug reports, log samples that do not parse well, and ideas are welcome in [Issues](../../issues). Remove computer names, user names and other private data from logs before you attach them. Pull requests are welcome too. Please keep to C# 5 and the .NET Framework 4.5 API level, so the same exe keeps running on the .NET Framework 4.6.2, 4.8 and 4.8.1 built into supported Windows versions.
 
 ## License
 
