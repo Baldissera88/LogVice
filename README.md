@@ -65,7 +65,6 @@ Get the latest version from [Releases](../../releases). Pick the package that su
 
 - Windows 10, Windows 11 or Windows Server 2016 or later
 - .NET Framework 4.5 or later (included in all supported Windows versions)
-- `LogVice.ps1` needs Windows PowerShell 5.1 in Full Language mode
 
 ## Deploy with Intune or ConfigMgr
 
@@ -100,10 +99,6 @@ LogVice.exe evt:\\PC0123\System
 
 # Merge a log file with an event log
 LogVice.exe C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\IntuneManagementExtension.log "evt:Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider/Admin"
-
-# The script version takes the same arguments
-.\LogVice.ps1 C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\IntuneManagementExtension.log
-```
 
 You can also drag files onto the window. Hold Ctrl while dropping to merge them into what is open.
 
@@ -169,7 +164,7 @@ LogVice is plain C# 5 and Windows Forms, with no NuGet packages.
 **On Windows**, with the compiler that ships with .NET Framework:
 
 ```powershell
-.\build.ps1          # LogVice.exe and LogVice.ps1
+.\build.ps1          # LogVice.exe
 .\build.ps1 -Msi     # also LogVice.msi, needs WiX Toolset 3
 ```
 
@@ -177,7 +172,7 @@ LogVice is plain C# 5 and Windows Forms, with no NuGet packages.
 
 ```sh
 ./build.sh           # LogVice.exe
-./package.sh         # LogVice.exe, LogVice.ps1 and LogVice.msi
+./package.sh         # LogVice.exe and LogVice.msi
 ```
 
 | Path | Contents |
@@ -188,7 +183,6 @@ LogVice is plain C# 5 and Windows Forms, with no NuGet packages.
 | `src/Logs.Locations.cs` | Log discovery and auto-merge of spanned logs |
 | `src/Net.Remote.cs` | Connect as: Windows sign-in dialog and SMB session |
 | `src/Ui.*.cs` | The window, log grid, browser, settings and dialogs |
-| `wrapper.ps1` | Template for `LogVice.ps1`. The build places the C# source inside it |
 | `LogVice.wxs` | WiX source for the MSI |
 
 ## Known limitations
