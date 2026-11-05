@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Builds LogVice on Windows: LogVice.exe, LogVice.ps1 and, with -Msi, LogVice.msi.
+    Builds LogVice on Windows: LogVice.exe and, with -Msi, LogVice.msi.
 
 .DESCRIPTION
     Uses the C# compiler that ships with .NET Framework 4.x, so no SDK or Visual Studio is needed.
@@ -49,24 +49,6 @@ if ($LASTEXITCODE -ne 0) {
     throw "csc.exe failed with exit code $LASTEXITCODE."
 }
 Write-Output 'Built LogVice.exe'
-
-$builder = New-Object -TypeName System.Text.StringBuilder
-foreach ($file in $sources) {
-    $text = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot $file))
-    foreach ($ch in $text.ToCharArray()) {
-        if ([int]$ch -lt 128) {
-            [void]$builder.Append($ch)
-        }
-        else {
-            [void]$builder.AppendFormat('\u{0:X4}', [int]$ch)
-        }
-    }
-    [void]$builder.Append("`n")
-}
-$wrapper = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot 'wrapper.ps1'))
-$script = $wrapper.Replace('__CSHARP__', $builder.ToString()) -replace "`r?`n", "`r`n"
-[System.IO.File]::WriteAllText((Join-Path $PSScriptRoot 'LogVice.ps1'), $script, (New-Object -TypeName System.Text.UTF8Encoding -ArgumentList $true))
-Write-Output 'Built LogVice.ps1'
 
 if ($Msi) {
     $wixBin = $null

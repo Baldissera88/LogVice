@@ -99,6 +99,7 @@ LogVice.exe evt:\\PC0123\System
 
 # Merge a log file with an event log
 LogVice.exe C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\IntuneManagementExtension.log "evt:Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider/Admin"
+```
 
 You can also drag files onto the window. Hold Ctrl while dropping to merge them into what is open.
 

@@ -1,0 +1,9 @@
+# Build output
+LogVice.exe
+LogVice.msi
+LogVice.ps1
+LogVice.combined.cs
+*.wixobj
+*.wixpdb
+*.dll
+*.pdb

@@ -23,11 +23,11 @@ LogVice 1.4.0, released on 5 November 2026, gives Trace Lens a new name and adds
 |---|---|
 | Product code | `{2BDC8F66-2461-46EE-AA50-3264BCC5F34A}` |
 | Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (unchanged) |
-| Files | `LogVice.msi`, `LogVice.exe`, `LogVice.ps1` |
+| Files | `LogVice.msi`, `LogVice.exe` |
 
 ### New name
 
-- **Trace Lens is now LogVice.** The app works as before. The files are now `LogVice.exe`, `LogVice.msi` and `LogVice.ps1`, and the MSI installs to `C:\Program Files\LogVice`.
+- **Trace Lens is now LogVice.** The app works as before. The files are now `LogVice.exe` and `LogVice.msi`, and the MSI installs to `C:\Program Files\LogVice`.
 - **Upgrade in place.** The MSI has the same upgrade code, so it removes Trace Lens and installs LogVice, with the Start menu shortcut and *Open with* moved to the new name.
 - **Your settings come along.** On first start, LogVice copies your settings, highlight rules, folders and recent logs from `HKCU\Software\Trace Lens` to `HKCU\Software\LogVice`.
 
@@ -183,7 +183,6 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later, with .NET 
 | --- | --- |
 | LogVice.msi | Run the 1.4.0 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
 | LogVice.exe (portable) | Delete TraceLens.exe and use LogVice.exe. Your settings are copied on first start |
-| LogVice.ps1 | Delete TraceLens.ps1 and use LogVice.ps1 |
 
 | MSI setting | Value |
 | --- | --- |
@@ -212,7 +211,6 @@ In Intune or ConfigMgr, add 1.4.0 as a new app that supersedes the earlier versi
 - Logs are held in memory, about two to three times their size on disk.
 - Live tail checks the files once a second. It stops updating while a remote computer or share is offline.
 - On Windows 10 and Server 2016 to 2022 the title bar keeps the system colours, and the interface uses Segoe UI and Consolas.
-- LogVice.ps1 needs Full Language mode and shows the PowerShell icon in the taskbar.
 - Windows Update traces from Windows Server 2016 and Windows 10 1607 and earlier need Microsoft symbol files and cannot be decoded. LogVice says so. Run `Get-WindowsUpdateLog` and open the `WindowsUpdate.log` it writes instead.
 - ETL files are read once and are not followed by Live. Select Reload to read them again.
 - Event log channels on another computer are not followed by Live. Select Reload to read new events. Reading them needs the firewall rule group Remote Event Log Management on that computer.
