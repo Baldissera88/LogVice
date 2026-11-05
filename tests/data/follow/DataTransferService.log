@@ -1,0 +1,3 @@
+<![LOG[DTS job {11112222-3333-4444-5555-666677778888} BITS job {99998888-7777-4666-8555-444433332222} created]LOG]!><time="09:00:36.000-60" date="11-05-2026" component="DataTransferService" context="" type="1" thread="1234" file="x.cpp:1">
+<![LOG[DTSJob {11112222-3333-4444-5555-666677778888} in state 'DownloadingData'.]LOG]!><time="09:00:39.000-60" date="11-05-2026" component="DataTransferService" context="" type="1" thread="1234" file="x.cpp:1">
+<![LOG[DTSJob {00000000-0000-4000-8000-000000000000} unrelated]LOG]!><time="09:00:42.000-60" date="11-05-2026" component="DataTransferService" context="" type="1" thread="1234" file="x.cpp:1">

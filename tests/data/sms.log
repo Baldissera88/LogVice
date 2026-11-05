@@ -1,0 +1,5 @@
+Starting service $$<SMS_EXECUTIVE><11-05-2026 10:00:00.123-60><thread=1234 (0x4D2)>
+Component failed to start, error 0x80004005 $$<SMS_SITE_COMPONENT_MANAGER><11-05-2026 10:00:01.500-60><thread=5678 (0x162E)>
+Warning: low disk space $$<SMS_EXECUTIVE><11-05-2026 10:00:02.000-60><thread=1234 (0x4D2)>
+No marker on this line
+Done $$<SMS_EXECUTIVE><11-05-2026 10:00:03.000-60><thread=1234 (0x4D2)>

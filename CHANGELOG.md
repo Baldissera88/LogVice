@@ -33,6 +33,8 @@ LogVice 1.5.0 follows one application, update, package or baseline through every
 - **Settings > Updates** turns the check on or off, and **About > Updates** has **Check now**.
 - **Policy**: `DisableUpdateCheck = 1` (DWORD) under `HKLM\SOFTWARE\Policies\LogVice` turns the check off for everyone. An administrative template for Intune and Group Policy is in `policy/`.
 - **Builds by GitHub Actions**: releases are built from the source in the repository, with `SHA256SUMS.txt` and a build provenance attestation you can check with `gh attestation verify`.
+- **Faster**: CMTrace logs are parsed without temporary strings for the time, date, type, thread, component and file fields. Several logs open in parallel, one per processor core. Filters, Find and highlight rules run across all cores. Follow an item searches each log once per ID, in parallel, and about 5 times faster. Spare memory is released after a log has loaded.
+- **Tests**: the build runs a set of parser, merge and Follow an item tests on small synthetic logs.
 - **Fixed product code per version**: the product code is set in `LogVice.wxs`, so it is known before the build and stays the same if a release is rebuilt.
 
 ## LogVice 1.4.0

@@ -1,0 +1,3 @@
+<![LOG[+++ Starting Install enforcement for App DT "Notepad++ 8.6"]LOG]!><time="08:00:01.000-60" date="11-04-2026" component="AppEnforce" context="" type="1" thread="4242" file="appenforce.cpp:42">
+<![LOG[Executing Command line: "msiexec /i npp.msi /qn"]LOG]!><time="08:00:02.000-60" date="11-04-2026" component="AppEnforce" context="" type="1" thread="4242" file="appenforce.cpp:42">
+<![LOG[Process 4100 terminated with exitcode: 1618]LOG]!><time="08:00:40.000-60" date="11-04-2026" component="AppEnforce" context="" type="3" thread="4242" file="appenforce.cpp:42">

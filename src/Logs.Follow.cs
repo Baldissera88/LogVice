@@ -509,27 +509,28 @@ namespace LogVice
 
         public static void ScanFiles(List<string> files, FollowResult r, Func<bool> cancelled, Action<string, int, int> progress)
         {
-            Dictionary<string, int> hits = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            HashSet<int>[] seen = new HashSet<int>[files.Count];
+            for (int k = 0; k < seen.Length; k++) seen[k] = new HashSet<int>();
             List<string> derived = new List<string>();
             const int Levels = 3;
             int total = files.Count * (Levels + 1);
-            Pass(files, r.Terms, null, hits, derived, r.Terms, cancelled, progress, 0, total);
+            Pass(files, r.Terms, seen, derived, r.Terms, cancelled, progress, 0, total);
             for (int level = 1; level <= Levels && derived.Count > 0; level++)
             {
                 if (cancelled != null && cancelled()) break;
                 List<string> next = new List<string>();
                 List<string> known = new List<string>(r.Terms);
                 known.AddRange(derived);
-                Pass(files, derived, r.Terms, hits, level < Levels ? next : null, known, cancelled, progress, files.Count * level, total);
+                Pass(files, derived, seen, level < Levels ? next : null, known, cancelled, progress, files.Count * level, total);
                 r.Terms.AddRange(derived);
                 derived = next;
             }
-            foreach (string f in files)
+            for (int k = 0; k < files.Count; k++)
             {
-                int n;
-                if (!hits.TryGetValue(f, out n) || n == 0) continue;
-                r.Files.Add(f);
-                r.Hits[f] = n;
+                int n = seen[k].Count;
+                if (n == 0) continue;
+                r.Files.Add(files[k]);
+                r.Hits[files[k]] = n;
                 r.Total += n;
             }
             StringBuilder sb = new StringBuilder();
@@ -549,40 +550,75 @@ namespace LogVice
             return r;
         }
 
-        static void Pass(List<string> files, List<string> terms, List<string> skip, Dictionary<string, int> hits, List<string> derived, List<string> known,
+        static void Pass(List<string> files, List<string> terms, HashSet<int>[] seen, List<string> derived, List<string> known,
             Func<bool> cancelled, Action<string, int, int> progress, int offset, int total)
         {
-            for (int i = 0; i < files.Count; i++)
+            string[] low = new string[terms.Count];
+            for (int t = 0; t < low.Length; t++) low[t] = terms[t].ToLowerInvariant();
+            object gate = new object();
+            int done = 0;
+            System.Threading.Tasks.ParallelOptions po = new System.Threading.Tasks.ParallelOptions();
+            po.MaxDegreeOfParallelism = Math.Max(1, Math.Min(Environment.ProcessorCount, 4));
+            System.Threading.Tasks.Parallel.For(0, files.Count, po, delegate (int i, System.Threading.Tasks.ParallelLoopState state)
             {
-                if (cancelled != null && cancelled()) return;
+                if (cancelled != null && cancelled()) { state.Stop(); return; }
                 string f = files[i];
-                if (progress != null) progress(Path.GetFileName(f), offset + i, total);
                 string text;
-                try { text = ReadText(f); } catch (Exception) { continue; }
-                int count = 0, start = 0;
-                while (start < text.Length)
+                try { text = ReadText(f); } catch (Exception) { text = null; }
+                List<int> starts = new List<int>();
+                List<string> found = derived != null ? new List<string>() : null;
+                if (text != null)
                 {
-                    int end = text.IndexOf('\n', start);
-                    if (end < 0) end = text.Length;
-                    bool hit = false;
-                    foreach (string t in terms)
+                    HashSet<int> mine = seen[i];
+                    HashSet<int> local = new HashSet<int>();
+                    foreach (string t in low)
                     {
-                        if (end - start >= t.Length && text.IndexOf(t, start, end - start, StringComparison.OrdinalIgnoreCase) >= 0) { hit = true; break; }
+                        if (t.Length == 0) continue;
+                        int p = 0;
+                        while (p < text.Length)
+                        {
+                            int h = Find(text, t, p);
+                            if (h < 0) break;
+                            int ls = h == 0 ? 0 : text.LastIndexOf('\n', h - 1) + 1;
+                            int le = text.IndexOf('\n', h);
+                            if (le < 0) le = text.Length;
+                            bool fresh;
+                            lock (mine) fresh = !mine.Contains(ls);
+                            if (fresh && local.Add(ls))
+                            {
+                                starts.Add(ls);
+                                if (found != null && found.Count < 40) Derive(text.Substring(ls, le - ls), found, known);
+                            }
+                            p = le + 1;
+                        }
                     }
-                    if (hit && skip != null)
-                        foreach (string t in skip)
-                            if (end - start >= t.Length && text.IndexOf(t, start, end - start, StringComparison.OrdinalIgnoreCase) >= 0) { hit = false; break; }
-                    if (hit)
-                    {
-                        count++;
-                        if (derived != null && derived.Count < 40) Derive(text.Substring(start, end - start), derived, known);
-                    }
-                    start = end + 1;
+                    lock (mine) foreach (int ls in starts) mine.Add(ls);
                 }
-                int prev;
-                hits.TryGetValue(f, out prev);
-                hits[f] = prev + count;
+                lock (gate)
+                {
+                    if (found != null)
+                        foreach (string g in found)
+                            if (derived.Count < 40 && !Contains(derived, g) && !Contains(known, g)) derived.Add(g);
+                    done++;
+                    if (progress != null) progress(Path.GetFileName(f), offset + done, total);
+                }
+            });
+        }
+
+        static int Find(string text, string lower, int from)
+        {
+            char a = lower[0], b = char.ToUpperInvariant(a);
+            int n = lower.Length, last = text.Length - n;
+            char[] any = a == b ? null : new char[] { a, b };
+            int p = from;
+            while (p <= last)
+            {
+                int h = any == null ? text.IndexOf(a, p, last - p + 1) : text.IndexOfAny(any, p, last - p + 1);
+                if (h < 0) return -1;
+                if (n == 1 || string.Compare(text, h + 1, lower, 1, n - 1, StringComparison.OrdinalIgnoreCase) == 0) return h;
+                p = h + 1;
             }
+            return -1;
         }
 
         static void Derive(string line, List<string> derived, List<string> known)

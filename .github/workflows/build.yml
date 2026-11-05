@@ -31,6 +31,9 @@ jobs:
       - name: Build LogVice.exe and LogVice.msi
         run: ./package.sh
 
+      - name: Run tests
+        run: ./tests/run.sh
+
       - name: Read version and product code
         id: info
         run: |

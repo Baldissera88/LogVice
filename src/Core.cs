@@ -89,7 +89,7 @@ namespace LogVice
 
         void Grow()
         {
-            int cap = Math.Max(65536, Cap * 2);
+            int cap = Cap < 65536 ? 65536 : (int)Math.Min(int.MaxValue - 64L, Cap * 2L);
             Array.Resize(ref Msg, cap);
             Array.Resize(ref Time, cap);
             Array.Resize(ref Key, cap);
@@ -125,6 +125,53 @@ namespace LogVice
             Count = i + 1;
         }
 
+        public void Trim(int headroom)
+        {
+            int cap = Count + headroom;
+            if (cap >= Cap) return;
+            Array.Resize(ref Msg, cap);
+            Array.Resize(ref Time, cap);
+            Array.Resize(ref Key, cap);
+            Array.Resize(ref Bias, cap);
+            Array.Resize(ref Sev, cap);
+            Array.Resize(ref Comp, cap);
+            Array.Resize(ref Thread, cap);
+            Array.Resize(ref CFile, cap);
+            Array.Resize(ref Src, cap);
+            Array.Resize(ref Line, cap);
+            Cap = cap;
+        }
+
+        public void Absorb(Store o)
+        {
+            int n = o.Count;
+            if (n == 0) return;
+            int[] cmap = new int[o.CompNames.Count];
+            for (int c = 0; c < cmap.Length; c++) cmap[c] = CompId(o.CompNames[c]);
+            int[] fmap = new int[o.CFNames.Count];
+            for (int c = 0; c < fmap.Length; c++) fmap[c] = CFileId(o.CFNames[c]);
+            while (Cap < Count + n) Grow();
+            int b = Count;
+            Array.Copy(o.Msg, 0, Msg, b, n);
+            Array.Copy(o.Time, 0, Time, b, n);
+            Array.Copy(o.Key, 0, Key, b, n);
+            Array.Copy(o.Bias, 0, Bias, b, n);
+            Array.Copy(o.Sev, 0, Sev, b, n);
+            Array.Copy(o.Thread, 0, Thread, b, n);
+            Array.Copy(o.Src, 0, Src, b, n);
+            Array.Copy(o.Line, 0, Line, b, n);
+            for (int i = 0; i < n; i++)
+            {
+                int c = o.Comp[i];
+                Comp[b + i] = c >= 0 ? cmap[c] : -1;
+                int f = o.CFile[i];
+                CFile[b + i] = f >= 0 ? fmap[f] : -1;
+            }
+            for (int v = 0; v < SevCount.Length; v++) SevCount[v] += o.SevCount[v];
+            for (int c = 0; c < cmap.Length; c++) CompCount[cmap[c]] += o.CompCount[c];
+            Count = b + n;
+        }
+
         public int CompId(string name)
         {
             if (string.IsNullOrEmpty(name)) return -1;
@@ -143,6 +190,34 @@ namespace LogVice
         {
             int id;
             return name != null && compMap.TryGetValue(name, out id) ? id : -1;
+        }
+
+        int lastComp = -1, lastCf = -1;
+
+        public int CompIdAt(string b, int a, int e)
+        {
+            int len = e - a;
+            if (len <= 0) return -1;
+            if (lastComp >= 0)
+            {
+                string c = CompNames[lastComp];
+                if (c.Length == len && string.CompareOrdinal(b, a, c, 0, len) == 0) return lastComp;
+            }
+            lastComp = CompId(b.Substring(a, len));
+            return lastComp;
+        }
+
+        public int CFileIdAt(string b, int a, int e)
+        {
+            int len = e - a;
+            if (len <= 0) return -1;
+            if (lastCf >= 0)
+            {
+                string c = CFNames[lastCf];
+                if (c.Length == len && string.CompareOrdinal(b, a, c, 0, len) == 0) return lastCf;
+            }
+            lastCf = CFileId(b.Substring(a, len));
+            return lastCf;
         }
 
         public int CFileId(string name)
@@ -219,6 +294,99 @@ namespace LogVice
                 return c != 0 ? c : a.CompareTo(b);
             });
             for (int j = 0; j < m; j++) { Order[from + j] = idx[j]; Rank[idx[j]] = from + j; }
+        }
+    }
+
+    public static class ViewFilter
+    {
+        const int Chunk = 1 << 16;
+
+        public delegate int RangeFilter(int from, int to, int[] output);
+
+        public static int[] Run(int n, RangeFilter filter, Func<bool> cancelled, out int count)
+        {
+            count = 0;
+            int chunks = (n + Chunk - 1) / Chunk;
+            int cpus = Environment.ProcessorCount;
+            if (chunks <= 1 || cpus == 1)
+            {
+                int[] v = new int[Math.Max(n, 16)];
+                int m = 0;
+                for (int a = 0; a < n; a += Chunk)
+                {
+                    if (cancelled != null && cancelled()) return null;
+                    int b = Math.Min(n, a + Chunk);
+                    int[] part = new int[b - a];
+                    int c = filter(a, b, part);
+                    Array.Copy(part, 0, v, m, c);
+                    m += c;
+                }
+                count = m;
+                return v;
+            }
+            int[][] parts = new int[chunks][];
+            int[] counts = new int[chunks];
+            bool stop = false;
+            System.Threading.Tasks.Parallel.For(0, chunks, delegate (int c, System.Threading.Tasks.ParallelLoopState state)
+            {
+                if (stop || (cancelled != null && cancelled())) { stop = true; state.Stop(); return; }
+                int a = c * Chunk, b = Math.Min(n, a + Chunk);
+                int[] part = new int[b - a];
+                counts[c] = filter(a, b, part);
+                parts[c] = part;
+            });
+            if (stop) return null;
+            int total = 0;
+            for (int c = 0; c < chunks; c++) total += counts[c];
+            int[] all = new int[Math.Max(n, 16)];
+            int at = 0;
+            for (int c = 0; c < chunks; c++)
+            {
+                Array.Copy(parts[c], 0, all, at, counts[c]);
+                at += counts[c];
+            }
+            count = total;
+            return all;
+        }
+
+        public static int Chunks(int n)
+        {
+            return (n + Chunk - 1) / Chunk;
+        }
+
+        public static bool ForChunks(int n, Action<int, int, int> body, Func<bool> cancelled)
+        {
+            int chunks = Chunks(n);
+            if (chunks <= 1 || Environment.ProcessorCount == 1)
+            {
+                for (int c = 0; c < chunks; c++)
+                {
+                    if (cancelled != null && cancelled()) return false;
+                    body(c, c * Chunk, Math.Min(n, (c + 1) * Chunk));
+                }
+                return true;
+            }
+            bool stop = false;
+            System.Threading.Tasks.Parallel.For(0, chunks, delegate (int c, System.Threading.Tasks.ParallelLoopState state)
+            {
+                if (stop || (cancelled != null && cancelled())) { stop = true; state.Stop(); return; }
+                body(c, c * Chunk, Math.Min(n, (c + 1) * Chunk));
+            });
+            return !stop;
+        }
+
+        public static int Count(Store st, Regex rx)
+        {
+            string[] msg = st.Msg;
+            int[] order = st.Order;
+            int count;
+            Run(st.Count, delegate (int a, int b, int[] o)
+            {
+                int m = 0;
+                for (int k = a; k < b; k++) { int i = order[k]; if (rx.IsMatch(msg[i])) o[m++] = i; }
+                return m;
+            }, null, out count);
+            return count;
         }
     }
 
@@ -349,34 +517,103 @@ namespace LogVice
                 }
                 int a0 = me + 7, a1 = ae + 1;
                 At(src, buf, s);
-                string time = Attr(buf, "time=\"", a0, a1);
-                string date = Attr(buf, "date=\"", a0, a1);
-                string ty = Attr(buf, "type=\"", a0, a1);
-                string th = Attr(buf, "thread=\"", a0, a1);
-                string fl = Attr(buf, "file=\"", a0, a1);
-                string comp = Attr(buf, "component=\"", a0, a1);
+                CmAttrs at;
+                ReadAttrs(buf, a0, a1, out at);
                 short bias = Store.NoBias;
                 long t = Store.NoTime;
-                if (time.Length > 0 && date.Length > 0) t = CmTime(time, date, out bias);
+                if (at.TimeB > at.TimeA && at.DateB > at.DateA) t = CmTime(buf, at.TimeA, at.TimeB, at.DateA, at.DateB, out bias);
                 int tn;
-                if (!Num(th, 0, th.Length, out tn)) tn = -1;
-                byte sev = ty == "3" ? (byte)3 : ty == "2" ? (byte)2 : (byte)1;
-                st.Add(src, buf.Substring(s + 7, me - s - 7), t, bias, sev, st.CompId(comp), tn, fl.Length > 0 ? st.CFileId(fl) : -1);
+                if (!Num(buf, at.ThreadA, at.ThreadB, out tn)) tn = -1;
+                byte sev = 1;
+                if (at.TypeB == at.TypeA + 1)
+                {
+                    char c = buf[at.TypeA];
+                    if (c == '3') sev = 3;
+                    else if (c == '2') sev = 2;
+                }
+                int comp = st.CompIdAt(buf, at.CompA, at.CompB);
+                int cf = at.FileB > at.FileA ? st.CFileIdAt(buf, at.FileA, at.FileB) : -1;
+                st.Add(src, buf.Substring(s + 7, me - s - 7), t, bias, sev, comp, tn, cf);
                 p = ae + 2;
                 while (p < n && (buf[p] == '\r' || buf[p] == '\n')) p++;
             }
             return p >= n ? "" : buf.Substring(p);
         }
 
-        static string Attr(string b, string key, int a0, int a1)
+        struct CmAttrs
         {
-            if (a1 <= a0) return "";
+            public int TimeA, TimeB, DateA, DateB, CompA, CompB, TypeA, TypeB, ThreadA, ThreadB, FileA, FileB;
+        }
+
+        static void ReadAttrs(string b, int a0, int a1, out CmAttrs at)
+        {
+            if (!FastAttrs(b, a0, a1, out at)) SlowAttrs(b, a0, a1, out at);
+        }
+
+        static void SlowAttrs(string b, int a0, int a1, out CmAttrs at)
+        {
+            at = new CmAttrs();
+            AttrPos(b, "time=\"", a0, a1, out at.TimeA, out at.TimeB);
+            AttrPos(b, "date=\"", a0, a1, out at.DateA, out at.DateB);
+            AttrPos(b, "type=\"", a0, a1, out at.TypeA, out at.TypeB);
+            AttrPos(b, "thread=\"", a0, a1, out at.ThreadA, out at.ThreadB);
+            AttrPos(b, "file=\"", a0, a1, out at.FileA, out at.FileB);
+            AttrPos(b, "component=\"", a0, a1, out at.CompA, out at.CompB);
+        }
+
+        static void AttrPos(string b, string key, int a0, int a1, out int va, out int vb)
+        {
+            va = vb = 0;
+            if (a1 <= a0) return;
             int i = b.IndexOf(key, a0, a1 - a0, StringComparison.Ordinal);
-            if (i < 0) return "";
+            if (i < 0) return;
             int v = i + key.Length;
-            if (v >= a1) return "";
+            if (v >= a1) return;
             int e = b.IndexOf('"', v, a1 - v);
-            return e < 0 ? "" : b.Substring(v, e - v);
+            if (e < 0) return;
+            va = v;
+            vb = e;
+        }
+
+        static bool FastAttrs(string b, int a0, int a1, out CmAttrs at)
+        {
+            at = new CmAttrs();
+            int q = a0;
+            while (q < a1)
+            {
+                while (q < a1 && (b[q] == ' ' || b[q] == '<' || b[q] == '\t')) q++;
+                if (q >= a1 || b[q] == '>') return true;
+                int eq = b.IndexOf('=', q, a1 - q);
+                if (eq < 0 || eq + 1 >= a1 || b[eq + 1] != '"') return false;
+                int vs = eq + 2;
+                int ve = vs < a1 ? b.IndexOf('"', vs, a1 - vs) : -1;
+                if (ve < 0) break;
+                int ks = eq;
+                while (ks > q && IsKeyChar(b[ks - 1])) ks--;
+                if (ks != q) return false;
+                int kl = eq - ks;
+                if (kl == 4)
+                {
+                    if (Key(b, ks, "time")) { at.TimeA = vs; at.TimeB = ve; }
+                    else if (Key(b, ks, "date")) { at.DateA = vs; at.DateB = ve; }
+                    else if (Key(b, ks, "type")) { at.TypeA = vs; at.TypeB = ve; }
+                    else if (Key(b, ks, "file")) { at.FileA = vs; at.FileB = ve; }
+                }
+                else if (kl == 6) { if (Key(b, ks, "thread")) { at.ThreadA = vs; at.ThreadB = ve; } }
+                else if (kl == 9) { if (Key(b, ks, "component")) { at.CompA = vs; at.CompB = ve; } }
+                q = ve + 1;
+            }
+            return true;
+        }
+
+        static bool IsKeyChar(char c)
+        {
+            return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+        }
+
+        static bool Key(string b, int at, string key)
+        {
+            return string.CompareOrdinal(b, at, key, 0, key.Length) == 0;
         }
 
         static string ParseLines(Store st, LogSource src, string buf, bool fin, int kind)
@@ -458,7 +695,7 @@ namespace LogVice
             short bias = Store.NoBias;
             long t = Store.NoTime;
             int sp = dt.IndexOf(' ');
-            if (sp > 0) t = CmTime(dt.Substring(sp + 1), dt.Substring(0, sp), out bias);
+            if (sp > 0) t = CmTime(dt, sp + 1, dt.Length, 0, sp, out bias);
             int th = -1;
             if (rest.StartsWith("thread=", StringComparison.Ordinal))
             {
@@ -488,28 +725,29 @@ namespace LogVice
             st.Add(src, msg, t, Store.NoBias, sev, st.CompId(m.Groups[8].Value), -1, -1);
         }
 
-        static long CmTime(string time, string date, out short bias)
+        static long CmTime(string b, int ta, int tb, int da0, int db, out short bias)
         {
             bias = Store.NoBias;
-            int d1 = date.IndexOf('-');
+            int d1 = b.IndexOf('-', da0, db - da0);
             if (d1 < 0) return Store.NoTime;
-            int d2 = date.IndexOf('-', d1 + 1);
+            int d2 = d1 + 1 < db ? b.IndexOf('-', d1 + 1, db - d1 - 1) : -1;
             if (d2 < 0) return Store.NoTime;
             int mo, da, yr;
-            if (!Num(date, 0, d1, out mo) || !Num(date, d1 + 1, d2, out da) || !Num(date, d2 + 1, date.Length, out yr)) return Store.NoTime;
-            return Clock(time, yr, mo, da, out bias);
+            if (!Num(b, da0, d1, out mo) || !Num(b, d1 + 1, d2, out da) || !Num(b, d2 + 1, db, out yr)) return Store.NoTime;
+            return Clock(b, ta, tb, yr, mo, da, out bias);
         }
 
-        static long Clock(string t, int yr, int mo, int da, out short bias)
+        static long Clock(string t, int a, int len, int yr, int mo, int da, out short bias)
         {
             bias = Store.NoBias;
-            int c1 = t.IndexOf(':');
+            if (len <= a) return Store.NoTime;
+            int c1 = t.IndexOf(':', a, len - a);
             if (c1 < 0) return Store.NoTime;
-            int c2 = t.IndexOf(':', c1 + 1);
+            int c2 = c1 + 1 < len ? t.IndexOf(':', c1 + 1, len - c1 - 1) : -1;
             if (c2 < 0) return Store.NoTime;
             int hh, mi;
-            if (!Num(t, 0, c1, out hh) || !Num(t, c1 + 1, c2, out mi)) return Store.NoTime;
-            int len = t.Length, j = c2 + 1, ss = 0, sd = 0;
+            if (!Num(t, a, c1, out hh) || !Num(t, c1 + 1, c2, out mi)) return Store.NoTime;
+            int j = c2 + 1, ss = 0, sd = 0;
             while (j < len && t[j] >= '0' && t[j] <= '9') { ss = ss * 10 + (t[j] - '0'); j++; sd++; }
             if (sd == 0 || sd > 2) return Store.NoTime;
             long frac = 0;

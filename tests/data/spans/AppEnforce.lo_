@@ -1,0 +1,2 @@
+<![LOG[+++ Starting Install enforcement for App DT "Notepad++ 8.6" retry]LOG]!><time="09:00:01.000-60" date="11-04-2026" component="AppEnforce" context="" type="1" thread="4242" file="appenforce.cpp:42">
+<![LOG[Download of content failed 0x87D00607]LOG]!><time="09:00:05.000-60" date="11-04-2026" component="DataTransferService" context="" type="3" thread="4242" file="appenforce.cpp:42">

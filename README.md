@@ -212,7 +212,10 @@ LogVice is plain C# 5 and Windows Forms, with no NuGet packages.
 ```sh
 ./build.sh           # LogVice.exe
 ./package.sh         # LogVice.exe and LogVice.msi
+./tests/run.sh       # parser, merge and Follow an item tests
 ```
+
+The tests in `tests/` parse a set of small synthetic logs and compare the result with `tests/expected.txt`, so any change to how a log is read shows up. After an intended change, refresh the file with `./tests/run.sh --update`.
 
 **On GitHub**, the [Build workflow](.github/workflows/build.yml) runs `package.sh` on every push. When a release is published, it builds the exe and MSI, attaches them with `SHA256SUMS.txt`, signs a build provenance attestation, and adds the product code and checksums to the release notes.
 
@@ -233,6 +236,7 @@ To make a new release:
 | `src/Logs.Follow.cs`, `src/Ui.Follow.cs` | Follow an item: client WMI, log discovery and the search across logs |
 | `src/Ui.*.cs` | The window, log grid, browser, settings and dialogs |
 | `LogVice.wxs` | WiX source for the MSI |
+| `tests/` | Synthetic sample logs and the test runner used by the build |
 | `policy/` | Administrative template (ADMX) for Intune and Group Policy |
 
 ## Known limitations

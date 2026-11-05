@@ -1,0 +1,14 @@
+<![LOG[normal]LOG]!><time="10:00:00.123-60" date="11-05-2026" component="AppEnforce" context="" type="1" thread="1234" file="a.cpp:1">
+<![LOG[reordered]LOG]!><component="X" type="3" thread="77" date="11-05-2026" time="10:00:01.5+120" file="b.cpp:2">
+<![LOG[no attrs]LOG]!><>
+<![LOG[context with equals]LOG]!><time="10:00:02.000-60" date="11-05-2026" component="C" context="a=b c=d" type="2" thread="5" file="">
+<![LOG[missing time]LOG]!><date="11-05-2026" component="C" type="2" thread="x5" file="f">
+<![LOG[bad date]LOG]!><time="25:00:02.000-60" date="13-45-2026" component="" type="9" thread="" file="g">
+<![LOG[multi
+line message]LOG]!><time="10:00:03.000-60" date="11-05-2026" component="Multi" context="" type="1" thread="1" file="m">
+plain text in between
+<![LOG[spaces]LOG]!><time = "1" date="11-05-2026" component="S" type="3" thread="2" file="s">
+<![LOG[uppercase keys]LOG]!><TIME="10:00:04.000-60" Date="11-05-2026" Component="U" type="2" thread="3" file="u">
+<![LOG[short]LOG]!><time="10:00" date="11-05" component="Z" type="1" thread="1234567890" file="z">
+<![LOG[empty thread]LOG]!><time="10:00:05.000" date="1-5-2026" component="AppEnforce" type="1" thread="" file="a.cpp:1">
+<![LOG[truncated]LOG]!><time="10:00:06.000-60" date="11-05-2026" comp

@@ -7,3 +7,4 @@ LogVice.combined.cs
 *.wixpdb
 *.dll
 *.pdb
+tests/*.exe

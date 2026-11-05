@@ -1,0 +1,2 @@
+<![LOG[ScopeId_6E8C9A2B-4F1D-4C3B-9A5E-2B7D8C1F0A3E/DeploymentType_1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d.3 :- Current State = Unknown, Applicable = Applicable, ResolvedState = Available, Wanted = Installed]LOG]!><time="09:00:03.000-60" date="11-05-2026" component="AppIntentEval" context="" type="1" thread="1234" file="x.cpp:1">
+<![LOG[Unrelated line about something else]LOG]!><time="09:00:06.000-60" date="11-05-2026" component="AppIntentEval" context="" type="1" thread="1234" file="x.cpp:1">

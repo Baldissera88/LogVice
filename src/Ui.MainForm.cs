@@ -1202,16 +1202,21 @@ namespace LogVice
         {
             long done = 0, lastTick = -1000;
             Stopwatch clock = Stopwatch.StartNew();
-            foreach (string p in paths)
+            LogSource[] srcs = new LogSource[paths.Length];
+            for (int k = 0; k < paths.Length; k++)
             {
-                if (tok.State != 0) break;
-                LogSource src = new LogSource(p, s.Sources.Count);
-                s.Sources.Add(src);
-                long baseDone = done;
-                string name = src.Name;
-                try
+                srcs[k] = new LogSource(paths[k], s.Sources.Count);
+                s.Sources.Add(srcs[k]);
+            }
+            int workers = Math.Max(1, Math.Min(Environment.ProcessorCount, 6));
+            if (paths.Length == 1 || workers == 1)
+            {
+                foreach (LogSource src in srcs)
                 {
-                    Loader.ReadAll(s, src, tok, delegate (long pos)
+                    if (tok.State != 0 || tok.Oom) break;
+                    long baseDone = done;
+                    string name = src.Name;
+                    ReadOne(s, src, tok, delegate (long pos)
                     {
                         long now = clock.ElapsedMilliseconds;
                         if (now - lastTick < 100) return;
@@ -1220,25 +1225,63 @@ namespace LogVice
                         int cnt = s.Count;
                         SafeInvoke(delegate { Progress(tok, name, b, total, cnt); });
                     });
+                    done += Math.Max(src.Size, src.Pos);
                 }
-                catch (UnauthorizedAccessException ex)
+                return;
+            }
+            long[] pos2 = new long[srcs.Length];
+            int entries = 0;
+            object gate = new object();
+            ParallelOptions po = new ParallelOptions();
+            po.MaxDegreeOfParallelism = workers;
+            Parallel.For(0, srcs.Length, po, delegate (int k, ParallelLoopState state)
+            {
+                if (tok.State != 0 || tok.Oom) { state.Stop(); return; }
+                LogSource src = srcs[k];
+                Store part = new Store();
+                string name = src.Name;
+                ReadOne(part, src, tok, delegate (long pos)
                 {
-                    src.Error = ex.Message;
-                    src.Denied = true;
-                    src.Dispose();
-                }
-                catch (OutOfMemoryException)
+                    System.Threading.Interlocked.Exchange(ref pos2[k], pos);
+                    long now = clock.ElapsedMilliseconds;
+                    if (now - System.Threading.Interlocked.Read(ref lastTick) < 100) return;
+                    System.Threading.Interlocked.Exchange(ref lastTick, now);
+                    long b = 0;
+                    for (int q = 0; q < pos2.Length; q++) b += System.Threading.Interlocked.Read(ref pos2[q]);
+                    int cnt = System.Threading.Volatile.Read(ref entries) + part.Count;
+                    SafeInvoke(delegate { Progress(tok, name, b, total, cnt); });
+                });
+                System.Threading.Interlocked.Exchange(ref pos2[k], Math.Max(src.Size, src.Pos));
+                lock (gate)
                 {
-                    src.Partial = true;
-                    tok.Oom = true;
+                    try { s.Absorb(part); }
+                    catch (OutOfMemoryException) { src.Partial = true; tok.Oom = true; }
+                    System.Threading.Volatile.Write(ref entries, s.Count);
                 }
-                catch (Exception ex)
-                {
-                    src.Error = ex.Message;
-                    src.Dispose();
-                }
-                done += Math.Max(src.Size, src.Pos);
-                if (tok.Oom) break;
+            });
+        }
+
+        static void ReadOne(Store s, LogSource src, LoadToken tok, Action<long> progress)
+        {
+            try
+            {
+                Loader.ReadAll(s, src, tok, progress);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                src.Error = ex.Message;
+                src.Denied = true;
+                src.Dispose();
+            }
+            catch (OutOfMemoryException)
+            {
+                src.Partial = true;
+                tok.Oom = true;
+            }
+            catch (Exception ex)
+            {
+                src.Error = ex.Message;
+                src.Dispose();
             }
         }
 
@@ -1264,6 +1307,7 @@ namespace LogVice
             }
             loading = false;
             loadTok = null;
+            try { s.Trim(1 << 16); } catch (OutOfMemoryException) { }
             s.BuildOrder();
             StringBuilder errs = new StringBuilder();
             long bytes = 0;
@@ -1471,15 +1515,18 @@ namespace LogVice
             string[] msg = s.Msg;
             Task.Factory.StartNew(delegate
             {
-                int[] v = new int[Math.Max(n, 16)];
-                int m = 0;
-                for (int o = 0; o < n; o++)
+                int count;
+                int[] v = ViewFilter.Run(n, delegate (int a, int b, int[] o)
                 {
-                    if ((o & 0xFFFF) == 0 && gen != viewGen) return;
-                    int i = order[o];
-                    if (Pass(f, i, sev, comp, thr, key, msg)) v[m++] = i;
-                }
-                int count = m;
+                    int m = 0;
+                    for (int k = a; k < b; k++)
+                    {
+                        int i = order[k];
+                        if (Pass(f, i, sev, comp, thr, key, msg)) o[m++] = i;
+                    }
+                    return m;
+                }, delegate { return gen != viewGen; }, out count);
+                if (v == null) return;
                 SafeInvoke(delegate { ApplyView(gen, v, count, n, goEnd); });
             });
         }
@@ -1816,21 +1863,20 @@ namespace LogVice
             Task.Factory.StartNew(delegate
             {
                 byte[] mask = new byte[cap];
-                int[] pos = new int[1024];
-                int k = 0;
-                for (int p = 0; p < m; p++)
+                int found;
+                int[] hits = ViewFilter.Run(m, delegate (int a, int b, int[] o)
                 {
-                    if ((p & 0x3FFF) == 0 && gen != findGen) return;
-                    int i = v[p];
-                    if (rx.IsMatch(msg[i]))
+                    int c = 0;
+                    for (int p = a; p < b; p++)
                     {
+                        int i = v[p];
+                        if (!rx.IsMatch(msg[i])) continue;
                         mask[i] = 1;
-                        if (k == pos.Length) Array.Resize(ref pos, pos.Length * 2);
-                        pos[k++] = p;
+                        o[c++] = p;
                     }
-                }
-                int found = k;
-                int[] hits = pos;
+                    return c;
+                }, delegate { return gen != findGen; }, out found);
+                if (hits == null) return;
                 SafeInvoke(delegate { ApplyFind(gen, mask, hits, found, m); });
             });
         }
@@ -2050,17 +2096,32 @@ namespace LogVice
             Task.Factory.StartNew(delegate
             {
                 byte[] m = new byte[cap];
+                int chunks = ViewFilter.Chunks(n);
+                int[][] partCounts = new int[chunks][];
+                int[] partAny = new int[chunks];
+                bool ok = ViewFilter.ForChunks(n, delegate (int ch, int a, int b)
+                {
+                    int[] cc = new int[rs.Length];
+                    int an = 0;
+                    for (int i = a; i < b; i++)
+                    {
+                        int c = comp[i];
+                        string cn = c >= 0 && c < names.Length ? names[c] : null;
+                        for (int k = 0; k < rs.Length; k++)
+                        {
+                            if (rs[k].Matches(msg[i], cn)) { m[i] = (byte)(k + 1); cc[k]++; an++; break; }
+                        }
+                    }
+                    partCounts[ch] = cc;
+                    partAny[ch] = an;
+                }, delegate { return gen != markGen; });
+                if (!ok) return;
                 int[] counts = new int[rs.Length];
                 int any = 0;
-                for (int i = 0; i < n; i++)
+                for (int ch = 0; ch < chunks; ch++)
                 {
-                    if ((i & 0x3FFF) == 0 && gen != markGen) return;
-                    int c = comp[i];
-                    string cn = c >= 0 && c < names.Length ? names[c] : null;
-                    for (int k = 0; k < rs.Length; k++)
-                    {
-                        if (rs[k].Matches(msg[i], cn)) { m[i] = (byte)(k + 1); counts[k]++; any++; break; }
-                    }
+                    any += partAny[ch];
+                    for (int k = 0; k < rs.Length; k++) counts[k] += partCounts[ch][k];
                 }
                 SafeInvoke(delegate
                 {
