@@ -26,6 +26,7 @@ namespace LogVice
         FluentButton bUpdate;
         UpdateInfo update;
         public event Action<UpdateInfo> InstallRequested;
+        public event EventHandler WhatsNewRequested;
         List<HighlightRule> rules = new List<HighlightRule>();
         readonly SettingRow rowRecent, rowFound;
         readonly ToolTip tips;
@@ -468,6 +469,9 @@ namespace LogVice
             bUpdate.Click += delegate { UpdateClicked(); };
             rowUpdate = new SettingRow(Glyph.Info, "Updates", "Releases are published on GitHub: " + Updates.ReleasesUrl, bUpdate);
             AddA(rowUpdate);
+            FluentButton bNotes = Button("Show", "Read what changed in each version");
+            bNotes.Click += delegate { if (WhatsNewRequested != null) WhatsNewRequested(this, EventArgs.Empty); };
+            AddA(new SettingRow(Glyph.Text, "What's new", "Read what changed in this version and the ones before it.", bNotes));
 
             AddA(new SectionTitle("Supported logs"));
             AddA(new SettingRow(Glyph.File, "CMTrace", "ConfigMgr client and site server logs, Intune Management Extension logs (IntuneManagementExtension, AgentExecutor).", null));
@@ -499,7 +503,7 @@ namespace LogVice
             }));
 
             AddA(new SectionTitle("Privacy"));
-            AddA(new SettingRow(Glyph.Info, "Your logs stay where they are", "Files are opened read-only and shared, so clients keep writing them. LogVice sends nothing about you or your logs anywhere. The only internet call is the daily update check, which asks GitHub for the latest version and can be turned off under Settings > Updates. It only reaches another computer when you connect to it in Browse logs, through that computer's admin shares and its event log service. With Connect as, the account is used only for that connection, and its password is kept only if you tick Remember my credentials, in Windows Credential Manager.", null));
+            AddA(new SettingRow(Glyph.Info, "Your logs stay where they are", "Files are opened read-only and shared, so clients keep writing them. LogVice sends nothing about you or your logs anywhere. The only internet calls are for updates: once a day LogVice asks GitHub for the latest version, and when you select Install it downloads that version from GitHub. Both can be turned off under Settings > Updates. It only reaches another computer when you connect to it in Browse logs, through that computer's admin shares and its event log service. With Connect as, the account is used only for that connection, and its password is kept only if you tick Remember my credentials, in Windows Credential Manager.", null));
         }
 
         void UpdateClicked()

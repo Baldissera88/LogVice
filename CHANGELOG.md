@@ -6,7 +6,8 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 
 | Version | Highlights | Upgrade |
 |---|---|---|
-| **1.5.2** (latest) | Install updates from LogVice with one click, checked against the release checksums | Run the MSI. It replaces Trace Lens and any earlier version |
+| **1.5.3** (latest) | What's new in the app, release notes in the Update dialog, winget manifests with every release | Run the MSI. It replaces Trace Lens and any earlier version |
+| 1.5.2 | Install updates from LogVice with one click, checked against the release checksums | |
 | 1.5.1 | Faster loading, filtering and Follow an item, automatic tests | |
 | 1.5.0 | Follow an item through every client log, update check with ADMX policy, releases built by GitHub Actions | |
 | 1.4.0 | New name LogVice, Windows event logs (live channels, remote computers and .evtx files) | |
@@ -17,6 +18,23 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 | 1.1.0 | Windows 11 style with light and dark themes | |
 
 ![LogVice log view](docs/images/log-light.png)
+
+## LogVice 1.5.3
+
+LogVice 1.5.3 tells you what changed, right in the app, and every release now comes with manifests for winget.
+
+| | |
+|---|---|
+| Product code | `{E356B345-5FFA-47BF-BCBE-EE9668F28AB1}` |
+| Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (unchanged) |
+| Files | `LogVice.msi`, `LogVice.exe`, `SHA256SUMS.txt` |
+
+### New in 1.5.3
+
+- **What's new**: after LogVice has been updated, a bar under the toolbar says so. Select **What's new** to read everything that changed since the version you had. The notes are built into LogVice, so they also work offline and when the update check is turned off by policy.
+- **About > What's new** lists every version, newest first.
+- **Release notes before you install**: the **Update** dialog shows the new version's release notes from GitHub, with **Install**, **Release page** and **Not now**.
+- **winget**: the build workflow writes winget manifests for every release, checked against the MSI it just built, and submits them to the Windows Package Manager community repository. Once the package is approved, `winget install DanielBaldissera.LogVice` installs LogVice and `winget upgrade` keeps it up to date.
 
 ## LogVice 1.5.2
 
@@ -243,13 +261,14 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 
 | Package | How to upgrade from an earlier version |
 | --- | --- |
-| LogVice.msi | Run the 1.5.2 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
+| LogVice.msi | Run the 1.5.3 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
 | LogVice.exe (portable) | Delete TraceLens.exe and use LogVice.exe. Your settings are copied on first start |
 
 | MSI setting | Value |
 | --- | --- |
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {4050591A-C0F1-4E84-894A-B8D08AA798B6} /qn` |
+| Uninstall command | `msiexec /x {E356B345-5FFA-47BF-BCBE-EE9668F28AB1} /qn` |
+| Product code (1.5.3) | `{E356B345-5FFA-47BF-BCBE-EE9668F28AB1}` |
 | Product code (1.5.2) | `{4050591A-C0F1-4E84-894A-B8D08AA798B6}` |
 | Product code (1.5.1) | `{6F8A9909-3D0A-40F6-9C43-8E3FA7DD7BFD}` |
 | Product code (1.5.0) | `{902113B3-B6C9-45F4-8F0D-EB8CC84629A5}` |
@@ -266,7 +285,7 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 | Install context | System, per machine |
 | Restart | Not needed |
 
-In Intune or ConfigMgr, add 1.5.2 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
+In Intune or ConfigMgr, add 1.5.3 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
 
 ## Known limitations
 
@@ -286,6 +305,7 @@ In Intune or ConfigMgr, add 1.5.2 as a new app that supersedes the earlier versi
 
 | Version | Summary |
 | --- | --- |
+| 1.5.3 | What's new bar after an update, About > What's new, release notes in the Update dialog, winget manifests |
 | 1.5.2 | Install updates from LogVice: download from GitHub, check against SHA256SUMS.txt, install and reopen |
 | 1.5.1 | Faster loading, parallel reading of several logs, parallel filters and Find, Follow an item about 5 times faster, automatic tests |
 | 1.5.0 | Follow an item through every client log; update check with Update button and ADMX policy; releases built by GitHub Actions |

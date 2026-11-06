@@ -18,6 +18,7 @@ namespace LogVice
         public string MsiUrl;
         public string ExeUrl;
         public string SumsUrl;
+        public string Notes;
 
         public bool CanInstall
         {
@@ -119,6 +120,40 @@ namespace LogVice
                 else if (string.Equals(name, "LogVice.exe", StringComparison.OrdinalIgnoreCase)) r.ExeUrl = m.Groups[1].Value;
                 else if (string.Equals(name, "SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase)) r.SumsUrl = m.Groups[1].Value;
             }
+            Match body = RxBody.Match(json ?? "");
+            if (body.Success) r.Notes = ReleaseNotes.FromRelease(JsonString(body.Groups[1].Value));
+        }
+
+        static readonly Regex RxBody = new Regex("\"body\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+
+        public static string JsonString(string s)
+        {
+            StringBuilder sb = new StringBuilder(s.Length);
+            for (int i = 0; i < s.Length; i++)
+            {
+                char c = s[i];
+                if (c != '\\' || i + 1 >= s.Length) { sb.Append(c); continue; }
+                char n = s[++i];
+                int code;
+                switch (n)
+                {
+                    case 'n': sb.Append('\n'); break;
+                    case 'r': sb.Append('\r'); break;
+                    case 't': sb.Append('\t'); break;
+                    case 'b': sb.Append('\b'); break;
+                    case 'f': sb.Append('\f'); break;
+                    case 'u':
+                        if (i + 4 < s.Length && int.TryParse(s.Substring(i + 1, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out code))
+                        {
+                            sb.Append((char)code);
+                            i += 4;
+                        }
+                        else sb.Append(n);
+                        break;
+                    default: sb.Append(n); break;
+                }
+            }
+            return sb.ToString();
         }
 
         static readonly Regex RxAsset = new Regex("\"browser_download_url\"\\s*:\\s*\"(https://github\\.com/" + Regex.Escape(Repo) + "/releases/download/[^\"/]+/(LogVice\\.msi|LogVice\\.exe|SHA256SUMS\\.txt))\"", RegexOptions.IgnoreCase);

@@ -160,8 +160,15 @@ namespace LogVice
             status = new StatusBar();
             status.Dock = DockStyle.Bottom;
 
+            info = new InfoBar();
+            info.Dock = DockStyle.Top;
+            info.Visible = false;
+            info.SetTips(tips);
+            info.Action.Click += delegate { ShowWhatsNew(); };
+
             Controls.Add(content);
             Controls.Add(filterBar);
+            Controls.Add(info);
             Controls.Add(cmdBar);
             Controls.Add(status);
 
@@ -473,6 +480,7 @@ namespace LogVice
 
             settingsView = new SettingsView(tips);
             settingsView.InstallRequested += delegate (UpdateInfo u) { InstallUpdate(u); };
+            settingsView.WhatsNewRequested += delegate { ShowAllNotes(); };
             settingsView.Dock = DockStyle.Fill;
             settingsView.Visible = false;
             settingsView.BackRequested += delegate { ShowView(ViewKind.Logs); };
@@ -704,6 +712,7 @@ namespace LogVice
             lastDir = Settings.Get("LastFolder");
             start.SetRecent(Settings.Recent());
             if (!eggMode) Discover();
+            if (!eggMode) CheckUpgraded();
             if (!eggMode && Updates.Enabled && Updates.DueToday) Updates.CheckAsync(delegate (UpdateInfo r) { SafeInvoke(delegate { UpdateFound(r); }); });
             RefreshCounts();
             ShowStart();
@@ -910,6 +919,43 @@ namespace LogVice
 
         UpdateInfo pendingUpdate;
         bool installing;
+        InfoBar info;
+        string notesSince;
+
+        void CheckUpgraded()
+        {
+            string last = Settings.Get("LastVersion");
+            bool known = !string.IsNullOrEmpty(last) || Settings.Get("UpdateChecked") != null || Settings.Recent().Count > 0;
+            if (last != Program.Version) Settings.Set("LastVersion", Program.Version);
+            if (!known || last == Program.Version) return;
+            if (!string.IsNullOrEmpty(last) && !Updates.IsNewer(Program.Version, last)) return;
+            notesSince = string.IsNullOrEmpty(last) ? null : last;
+            info.Message = "LogVice was updated to " + Program.Version + (notesSince != null ? " from " + notesSince : "") + ".";
+            info.Visible = true;
+        }
+
+        void ShowWhatsNew()
+        {
+            info.Visible = false;
+            string md = notesSince != null ? ReleaseNotes.Sections(ReleaseNotes.Changelog, notesSince, Program.Version) : ReleaseNotes.Section(ReleaseNotes.Changelog, Program.Version);
+            ShowNotes("What's new", "What's new in LogVice " + Program.Version, notesSince != null ? "Everything that changed since " + notesSince + "." : "", md);
+        }
+
+        void ShowAllNotes()
+        {
+            ShowNotes("What's new", "What's new in LogVice", "You have " + Program.Version + ". Every version is listed, newest first.", ReleaseNotes.Sections(ReleaseNotes.Changelog, null, Program.Version));
+        }
+
+        void ShowNotes(string caption, string title, string text, string md)
+        {
+            using (NotesForm f = new NotesForm(caption, title, text, md))
+            {
+                f.AddButton(ButtonKind.Standard, "Full changelog", DialogResult.Retry);
+                f.AddButton(ButtonKind.Accent, "Close", DialogResult.OK);
+                f.ApplyTheme(theme);
+                if (f.ShowDialog(this) == DialogResult.Retry) try { Process.Start(ReleaseNotes.ChangelogUrl); } catch (Exception) { }
+            }
+        }
 
         void UpdateFound(UpdateInfo r)
         {
@@ -927,11 +973,17 @@ namespace LogVice
         {
             if (r == null || installing) return;
             bool msi = Updates.IsInstalled;
-            string text = "LogVice " + r.Latest + " is available. You have " + Program.Version + ".\r\n\r\n" +
-                "Yes: download it from GitHub, check it against the release's checksum and install it now. LogVice closes and opens again with the same logs." +
-                (msi ? " Windows asks for administrator rights to install it." : "") + "\r\n\r\n" +
-                "No: open the release notes.\r\n\r\nCancel: not now.";
-            DialogResult a = MessageBox.Show(this, text, "Update LogVice", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+            string text = "You have " + Program.Version + ". Install downloads it from GitHub, checks it against the release's checksum and installs it. LogVice closes and opens again with the same logs." +
+                (msi ? " Windows asks for administrator rights." : "");
+            DialogResult a;
+            using (NotesForm f = new NotesForm("Update LogVice", "LogVice " + r.Latest + " is available", text, r.Notes))
+            {
+                f.AddButton(ButtonKind.Accent, "Install", DialogResult.Yes);
+                f.AddButton(ButtonKind.Standard, "Release page", DialogResult.No);
+                f.AddButton(ButtonKind.Standard, "Not now", DialogResult.Cancel);
+                f.ApplyTheme(theme);
+                a = f.ShowDialog(this);
+            }
             if (a == DialogResult.No) { try { Process.Start(r.Url); } catch (Exception) { } return; }
             if (a != DialogResult.Yes) return;
             installing = true;

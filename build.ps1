@@ -27,7 +27,7 @@ $sources = @(
     'src\AssemblyInfo.cs', 'src\Core.cs', 'src\Logs.Locations.cs', 'src\Logs.Etl.cs', 'src\Logs.EventLog.cs',
     'src\Net.Remote.cs', 'src\Net.Update.cs', 'src\Logs.Follow.cs', 'src\Ui.Follow.cs', 'src\Ui.Base.cs', 'src\Ui.Controls.cs', 'src\Ui.Controls2.cs',
     'src\Ui.Grid.cs', 'src\Ui.Browse.cs', 'src\Ui.Highlights.cs', 'src\Ui.Settings.cs', 'src\Ui.MainForm.cs',
-    'src\Ui.Lookup.cs', 'src\Program.cs'
+    'src\Ui.Lookup.cs', 'src\Ui.Notes.cs', 'src\Program.cs'
 )
 
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
@@ -41,7 +41,7 @@ if (-not (Test-Path -Path $csc)) {
 $cscArgs = @(
     '/nologo', '/target:winexe', '/platform:anycpu', '/optimize+', '/langversion:5',
     '/reference:System.dll', '/reference:System.Core.dll', '/reference:System.Management.dll', '/reference:System.Drawing.dll', '/reference:System.Windows.Forms.dll',
-    '/win32icon:LogVice.ico', '/resource:LogVice.ico,LogVice.ico', '/out:LogVice.exe'
+    '/win32icon:LogVice.ico', '/resource:LogVice.ico,LogVice.ico', '/resource:CHANGELOG.md,CHANGELOG.md', '/out:LogVice.exe'
 ) + $sources
 
 & $csc @cscArgs

@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 1.5.2" src="https://img.shields.io/badge/version-1.5.2-005fb8">
+  <img alt="Version 1.5.3" src="https://img.shields.io/badge/version-1.5.3-005fb8">
   <a href="../../actions/workflows/build.yml"><img alt="Build" src="../../actions/workflows/build.yml/badge.svg"></a>
   <img alt="Windows 10, 11 and Server 2016 or later" src="https://img.shields.io/badge/Windows-10%20%7C%2011%20%7C%20Server%202016%2B-0078d4">
   <img alt=".NET Framework 4.8 included in Windows" src="https://img.shields.io/badge/.NET%20Framework-4.8%20(in%20Windows)-512bd4">
@@ -42,7 +42,7 @@ It is one small exe with no installer requirement and nothing to configure. An M
 - **Line numbers.** See where each entry is in the file, or the record ID of an event, and press Ctrl+G to go to it.
 - **Administrator rights only when needed.** LogVice runs as a normal user and offers to restart as administrator when a log needs it, such as the Security event log.
 - **Read-only and private.** Files are opened read-only with full sharing, so clients keep writing and rolling them. Nothing about you or your logs leaves the computer.
-- **Updates.** Once a day LogVice asks GitHub for the latest version. When there is a newer one, select **Update** and LogVice downloads it, checks it against the release's checksums, installs it and opens again with your logs. Turn it off in Settings, or for everyone with a policy.
+- **Updates.** Once a day LogVice asks GitHub for the latest version. When there is a newer one, select **Update** and LogVice downloads it, checks it against the release's checksums, installs it and opens again with your logs. Afterwards **What's new** shows what changed. Turn the check off in Settings, or for everyone with a policy.
 
 <table>
   <tr>
@@ -87,8 +87,8 @@ The MSI installs per machine, needs no restart and upgrades any earlier version 
 | Setting | Value |
 |---|---|
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {4050591A-C0F1-4E84-894A-B8D08AA798B6} /qn` |
-| Detection | MSI product code `{4050591A-C0F1-4E84-894A-B8D08AA798B6}` (version 1.5.2) |
+| Uninstall command | `msiexec /x {E356B345-5FFA-47BF-BCBE-EE9668F28AB1} /qn` |
+| Detection | MSI product code `{E356B345-5FFA-47BF-BCBE-EE9668F28AB1}` (version 1.5.3) |
 | Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (the same for every version) |
 | Install context | System |
 
@@ -219,11 +219,13 @@ The tests in `tests/` parse a set of small synthetic logs and compare the result
 
 **On GitHub**, the [Build workflow](.github/workflows/build.yml) runs `package.sh` on every push. When a release is published, it builds the exe and MSI, attaches them with `SHA256SUMS.txt`, signs a build provenance attestation, and adds the product code and checksums to the release notes.
 
+It also writes the winget manifests for the release with [`winget/manifests.sh`](winget/manifests.sh) and keeps them as the `winget-<version>` artifact. When the repository secret `WINGET_TOKEN` is set, a second job submits them to [winget-pkgs](https://github.com/microsoft/winget-pkgs) with `wingetcreate`. The token is a classic GitHub token with the `public_repo` scope; `wingetcreate` uses it to fork winget-pkgs to your account and open the pull request.
+
 To make a new release:
 
 1. Raise the version in `src/AssemblyInfo.cs` and `LogVice.wxs`, and give `Product Id` in `LogVice.wxs` a new GUID.
 2. Add the version to `CHANGELOG.md` and push.
-3. Create a release on GitHub with the tag `v<version>`, for example `v1.5.2`. The workflow stops if the tag and the version in `LogVice.wxs` differ.
+3. Create a release on GitHub with the tag `v<version>`, for example `v1.5.3`. The workflow stops if the tag and the version in `LogVice.wxs` differ.
 
 | Path | Contents |
 |---|---|
@@ -238,10 +240,11 @@ To make a new release:
 | `LogVice.wxs` | WiX source for the MSI |
 | `tests/` | Synthetic sample logs and the test runner used by the build |
 | `policy/` | Administrative template (ADMX) for Intune and Group Policy |
+| `winget/` | Script that writes the winget manifests for a release |
 
 ## Known limitations
 
-- The exe, MSI and script are unsigned. SmartScreen warns on downloaded copies, and AppLocker or WDAC need them signed with your own certificate.
+- The exe and MSI are unsigned. SmartScreen warns on downloaded copies, and AppLocker or WDAC need them signed with your own certificate.
 - Windows Update traces from Windows Server 2016 and Windows 10 1607 and earlier need Microsoft symbol files. Run `Get-WindowsUpdateLog` for those.
 - Browsing another computer needs an administrator account on it and SMB access. Local accounts other than the built-in Administrator are blocked over the network by Remote UAC.
 - Event log channels on another computer are not followed live. Press F5 to read new events.

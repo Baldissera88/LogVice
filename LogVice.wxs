@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="4050591A-C0F1-4E84-894A-B8D08AA798B6"
+  <Product Id="E356B345-5FFA-47BF-BCBE-EE9668F28AB1"
            Name="LogVice"
            Language="1033"
            Codepage="1252"
-           Version="1.5.2"
+           Version="1.5.3"
            Manufacturer="Daniel L. Baldissera"
            UpgradeCode="2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3">
 
@@ -33,7 +33,7 @@
         <Directory Id="INSTALLDIR" Name="LogVice">
 
           <Component Id="LogViceExe" Guid="A8137363-CC1A-43A5-ADB4-612F6292C370" Win64="yes">
-            <File Id="LogViceExe" Name="LogVice.exe" Source="LogVice.exe" KeyPath="yes" DefaultVersion="1.5.2.0">
+            <File Id="LogViceExe" Name="LogVice.exe" Source="LogVice.exe" KeyPath="yes" DefaultVersion="1.5.3.0">
               <Shortcut Id="StartMenuShortcut"
                         Directory="ProgramMenuFolder"
                         Name="LogVice"

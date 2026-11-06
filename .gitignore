@@ -8,3 +8,4 @@ LogVice.combined.cs
 *.dll
 *.pdb
 tests/*.exe
+out/

@@ -56,6 +56,7 @@ namespace LogVice.Tests
             FollowChain();
             FollowIntune();
             UpdateRelease();
+            Notes();
 
             Console.WriteLine(failed == 0 ? "ALL TESTS PASSED" : failed + " TEST(S) FAILED");
             return failed == 0 ? 0 : 1;
@@ -209,6 +210,43 @@ namespace LogVice.Tests
             FollowResult r = Follow.Start(app, true);
             Follow.ScanFiles(files, r, null, null);
             Check(r.Total == 2 && r.Files.Count == 1, "follow finds the Intune app's 2 lines");
+        }
+
+        static void Notes()
+        {
+            string log = ReleaseNotes.Changelog;
+            string ver = LogVice.Program.Version;
+            Check(log.Contains("## LogVice " + ver + "\n") || log.Contains("## LogVice " + ver + "\r\n"), "the changelog is built into LogVice and has a section for " + ver);
+            string mine = ReleaseNotes.Section(log, ver);
+            Check(mine.StartsWith("## LogVice " + ver, StringComparison.Ordinal) && mine.IndexOf("\n## ", StringComparison.Ordinal) < 0, "What's new shows only this version's section");
+            string since = ReleaseNotes.Sections(log, "1.5.0", "1.5.2");
+            Check(since.Contains("## LogVice 1.5.2") && since.Contains("## LogVice 1.5.1") && !since.Contains("## LogVice 1.5.0") && !since.Contains("## LogVice 1.5.3") && !since.Contains("## Install and upgrade"),
+                "notes since a version cover the versions after it and nothing else");
+            string all = ReleaseNotes.Sections(log, null, ver);
+            Check(all.Contains("## Trace Lens 1.1.0") && !all.Contains("### At a glance") && !all.Contains("## Version history"), "all notes list every version and leave the other parts out");
+
+            string body = "Fixed a thing.\r\n\r\n- one\r\n\r\n### Deployment\n\n| | |\n### SHA256\n```\nabc\n```";
+            Check(ReleaseNotes.FromRelease(body) == "Fixed a thing.\n\n- one" && ReleaseNotes.FromRelease("### Deployment\nx") == null && ReleaseNotes.FromRelease(null) == null,
+                "release notes from GitHub leave out the deployment table and checksums");
+
+            UpdateInfo r = new UpdateInfo();
+            Updates.Parse("{\"tag_name\":\"v99.0.0\",\"body\":\"Line \\\"one\\\"\\r\\n- **b\\u00e6r** C:\\\\Logs\\n\\n### Deployment\\nx\"}", r);
+            Check(r.Notes == "Line \"one\"\n- **b\u00e6r** C:\\Logs", "release notes are read from the GitHub answer");
+
+            List<NoteBlock> p = ReleaseNotes.Parse("Use **bold** and `code` and [the **site**](https://x.y) here.");
+            bool inline = p.Count == 1 && p[0].Kind == NoteKind.Paragraph && p[0].Runs.Count == 8
+                && p[0].Runs[1].Text == "bold" && p[0].Runs[1].Bold && p[0].Runs[3].Text == "code" && p[0].Runs[3].Code
+                && p[0].Runs[5].Text == "the " && p[0].Runs[5].Url == "https://x.y" && !p[0].Runs[5].Bold
+                && p[0].Runs[6].Text == "site" && p[0].Runs[6].Bold && p[0].Runs[6].Url == "https://x.y" && p[0].Runs[7].Text == " here." && p[0].Runs[7].Url == null;
+            Check(inline, "release notes read bold, code and links");
+            List<NoteBlock> q = ReleaseNotes.Parse("## Title\n\n| | |\n|---|---|\n| Product code | `{X}` |\n\n- one\n  - two\n\n```\nraw **text**\n```\nline one\nline two");
+            bool shape = q.Count == 6 && q[0].Kind == NoteKind.Heading && q[1].Kind == NoteKind.Row && q[1].Cells.Count == 2 && q[1].Cells[1][0].Code
+                && q[2].Kind == NoteKind.Bullet && q[2].Depth == 0 && q[3].Depth == 1 && q[4].Kind == NoteKind.Code && q[4].Lines[0] == "raw **text**"
+                && q[5].Kind == NoteKind.Paragraph && q[5].Runs[0].Text == "line one line two";
+            Check(shape, "release notes read headings, tables, nested bullets, code blocks and paragraphs");
+            int heads = 0, versions = Regex.Matches(all, "^## (LogVice|Trace Lens) ", RegexOptions.Multiline).Count;
+            foreach (NoteBlock nb in ReleaseNotes.Parse(all)) if (nb.Kind == NoteKind.Heading) heads++;
+            Check(heads == versions && versions > 10, "the whole changelog reads as " + versions + " version sections");
         }
 
         static void UpdateRelease()
