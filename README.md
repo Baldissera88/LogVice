@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 1.5.4" src="https://img.shields.io/badge/version-1.5.4-005fb8">
+  <img alt="Version 1.5.5" src="https://img.shields.io/badge/version-1.5.5-005fb8">
   <a href="../../actions/workflows/build.yml"><img alt="Build" src="../../actions/workflows/build.yml/badge.svg"></a>
   <img alt="Windows 10, 11 and Server 2016 or later" src="https://img.shields.io/badge/Windows-10%20%7C%2011%20%7C%20Server%202016%2B-0078d4">
   <img alt=".NET Framework 4.8 included in Windows" src="https://img.shields.io/badge/.NET%20Framework-4.8%20(in%20Windows)-512bd4">
@@ -30,7 +30,7 @@ It is one small exe with no installer requirement and nothing to configure. An M
 - **Large files, fast.** Logs are read in the background and only the visible rows are drawn, so a 500 MB log opens without freezing the window.
 - **All the usual formats.** CMTrace (ConfigMgr and Intune IME), SMS trace, CBS, DISM and Panther, Windows Update ETL traces, and any plain text log with timestamps. UTF-8, UTF-16 and ANSI are detected.
 - **Windows event logs.** Open exported `.evtx` files, or read live channels such as Application, System, Security, Intune MDM (DeviceManagement-Enterprise-Diagnostics-Provider), Entra, Autopilot and Windows Update, on this computer or another one. Errors and warnings are marked like in CMTrace.
-- **Follow an item.** Pick an application, deployment type, software update, package, configuration baseline or Intune app from the ConfigMgr client, and LogVice shows every line about it from every client log in one timeline: policy, discovery, content download, install and detection.
+- **Follow an item.** Pick an application, deployment type, software update, package or configuration baseline from the ConfigMgr client, an Intune Win32 or Store app, a remediation, a platform script or any installed app, and LogVice shows every line about it from every client log and the related Windows events in one timeline: policy, discovery, content download, install and detection. Pick several to see them together.
 - **One timeline across sources.** Merge an Intune IME log with the MDM event log, or AppEnforce.log with the Application log, and read them by time.
 - **Browse logs.** Finds ConfigMgr site server, management point, distribution point, console, client, client setup and task sequence logs, Intune Management Extension logs, Windows logs and event logs for you, on this computer or another one.
 - **Connect as.** Read logs on a server with your admin account, without Run as or a second session.
@@ -87,8 +87,8 @@ The MSI installs per machine, needs no restart and upgrades any earlier version 
 | Setting | Value |
 |---|---|
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {A9263E20-7EF1-4668-898D-60331A11E33D} /qn` |
-| Detection | MSI product code `{A9263E20-7EF1-4668-898D-60331A11E33D}` (version 1.5.4) |
+| Uninstall command | `msiexec /x {BC1C2600-3FA3-4AA7-8AF7-576F60674AB7} /qn` |
+| Detection | MSI product code `{BC1C2600-3FA3-4AA7-8AF7-576F60674AB7}` (version 1.5.5) |
 | Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (the same for every version) |
 | Install context | System |
 
@@ -127,16 +127,23 @@ You can also drag files onto the window. Hold Ctrl while dropping to merge them 
 
 Press **Ctrl+I**, or select **Follow an item** on the start page or in Browse logs.
 
-1. LogVice lists what the ConfigMgr client knows: applications, software updates, packages and programs, and configuration baselines from the client's WMI, plus deployment types, updates, programs and Intune Win32 apps it finds in the logs.
-2. Pick one. LogVice collects its IDs, such as the application and deployment type IDs, the update ID and KB number, or the package ID.
+1. LogVice lists what it can follow:
+    - from the ConfigMgr client's WMI: applications, software updates, packages and programs, and configuration baselines
+    - from the client logs: deployment types, updates and programs
+    - from the Intune Management Extension logs: Win32 apps with their MSI product code, Store apps with their package identifier, remediations with their last result and output, and platform scripts
+    - from Apps & features: every installed app, with its MSI product code when it has one. An app that Intune deploys is shown once, on the Intune app.
+2. Pick one, or hold Ctrl or Shift to pick several. LogVice collects their IDs, such as the application and deployment type IDs, the update ID and KB number, the package ID, the MSI product code or the Store package identifier.
 3. It searches every log in `CCM\Logs`, `ccmsetup\Logs`, `SMSTSLog` and the Intune Management Extension logs, including rolled-over parts. Content IDs and download job IDs it finds on the way (CAS, ContentTransferManager, DataTransferService, BITS) are followed too.
-4. The logs with matches open merged by time, filtered to the lines about that item. Clear the filter to see everything around them.
+4. With **Also search Windows events** on, it also looks through the newest 50,000 events in Application, System, the MDM diagnostics log, AppX deployment and Windows Update, for example the Windows Installer events for an MSI.
+5. The logs and event logs with matches open merged by time, filtered to the lines about those items. Clear the filter to see everything around them.
 
 **Also find lines that only mention the name** also matches the item's display name, which catches lines without an ID but can include other items with similar names.
 
 The idea, and the description of how it could work, came from [u/overlydelicioustea](https://www.reddit.com/user/overlydelicioustea/) on r/SCCM. Thank you!
 
-In Browse logs, Follow an item works on the computer you are connected to, through its admin shares and WMI. Reading the client's WMI on another computer needs the Windows Management Instrumentation firewall rules on it. Without WMI, LogVice lists what it finds in the logs.
+In Browse logs, Follow an item works on the computer you are connected to, through its admin shares and WMI. Reading the client's WMI and the installed apps on another computer needs the Windows Management Instrumentation firewall rules on it, and its Windows events need the Remote Event Log Management rules. Without WMI, LogVice lists what it finds in the logs.
+
+Intune does not write the names of remediations and platform scripts to the device, so they are listed by their policy ID, the ID you also see in the Intune admin center.
 
 ### Event logs
 
@@ -225,7 +232,7 @@ To make a new release:
 
 1. Raise the version in `src/AssemblyInfo.cs` and `LogVice.wxs`, and give `Product Id` in `LogVice.wxs` a new GUID.
 2. Add the version to `CHANGELOG.md` and push.
-3. Create a release on GitHub with the tag `v<version>`, for example `v1.5.4`. The workflow stops if the tag and the version in `LogVice.wxs` differ.
+3. Create a release on GitHub with the tag `v<version>`, for example `v1.5.5`. The workflow stops if the tag and the version in `LogVice.wxs` differ.
 
 | Path | Contents |
 |---|---|
@@ -235,7 +242,7 @@ To make a new release:
 | `src/Logs.Locations.cs` | Log discovery and auto-merge of spanned logs |
 | `src/Net.Remote.cs` | Connect as: Windows sign-in dialog and SMB session |
 | `src/Net.Update.cs` | Update check against GitHub Releases, and installing a checked update |
-| `src/Logs.Follow.cs`, `src/Ui.Follow.cs` | Follow an item: client WMI, log discovery and the search across logs |
+| `src/Logs.Follow.cs`, `src/Ui.Follow.cs` | Follow an item: client WMI, installed apps, log discovery and the search across logs and Windows events |
 | `src/Ui.*.cs` | The window, log grid, browser, settings and dialogs |
 | `LogVice.wxs` | WiX source for the MSI |
 | `tests/` | Synthetic sample logs and the test runner used by the build |

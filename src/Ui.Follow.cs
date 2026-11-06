@@ -13,7 +13,7 @@ namespace LogVice
         readonly FluentTextBox search;
         readonly ListBox list;
         readonly Label status;
-        readonly CheckBox names;
+        readonly CheckBox names, events;
         readonly FluentButton bFollow, bCancel;
         readonly Panel bottom;
         List<FollowItem> all = new List<FollowItem>();
@@ -24,6 +24,7 @@ namespace LogVice
 
         public FollowResult Result;
         public FollowItem Chosen;
+        public readonly List<FollowItem> ChosenItems = new List<FollowItem>();
 
         public FollowForm(string computer)
         {
@@ -37,14 +38,14 @@ namespace LogVice
             ShowInTaskbar = false;
             KeyPreview = true;
             StartPosition = FormStartPosition.CenterParent;
-            Size = new Size(Dpi.S(720), Dpi.S(560));
+            Size = new Size(Dpi.S(760), Dpi.S(620));
             MinimumSize = new Size(Dpi.S(480), Dpi.S(360));
             Padding = new Padding(Dpi.S(20), Dpi.S(16), Dpi.S(20), Dpi.S(14));
 
             Label intro = new Label();
             intro.Dock = DockStyle.Top;
             intro.Height = Dpi.S(44);
-            intro.Text = "Pick an application, deployment type, update, package, baseline or Intune app. LogVice finds every line about it in the client logs and shows them as one timeline.";
+            intro.Text = "Pick an application, update, package, baseline, Intune app, script, remediation or installed app. LogVice finds every line about it in the client logs and Windows events and shows them as one timeline. Hold Ctrl or Shift to pick several.";
 
             search = new FluentTextBox(Glyph.Search, "Filter by name or ID");
             search.Dock = DockStyle.Top;
@@ -65,23 +66,30 @@ namespace LogVice
             list.DrawMode = DrawMode.OwnerDrawFixed;
             list.ItemHeight = Dpi.S(46);
             list.IntegralHeight = false;
+            list.SelectionMode = SelectionMode.MultiExtended;
             list.DrawItem += DrawRow;
             list.DoubleClick += delegate { Start(); };
             list.KeyDown += delegate (object s, KeyEventArgs e) { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; Start(); } };
-            list.SelectedIndexChanged += delegate { bFollow.Enabled = (!busy || loading) && list.SelectedItem != null; };
+            list.SelectedIndexChanged += delegate { UpdateFollowButton(); };
 
             bottom = new Panel();
             bottom.Dock = DockStyle.Bottom;
-            bottom.Height = Dpi.S(84);
+            bottom.Height = Dpi.S(108);
 
             names = new CheckBox();
             names.Text = "Also find lines that only mention the name";
             names.Checked = true;
             names.AutoSize = true;
-            names.Location = new Point(0, Dpi.S(10));
+            names.Location = new Point(0, Dpi.S(8));
+
+            events = new CheckBox();
+            events.Text = "Also search Windows events (Application, System, MDM, AppX, Windows Update)";
+            events.Checked = true;
+            events.AutoSize = true;
+            events.Location = new Point(0, Dpi.S(32));
 
             status = new Label();
-            status.Location = new Point(0, Dpi.S(38));
+            status.Location = new Point(0, Dpi.S(62));
             status.Height = Dpi.S(40);
 
             bFollow = new FluentButton(ButtonKind.Accent, Glyph.Search, "Follow");
@@ -95,6 +103,7 @@ namespace LogVice
                 bottom.Controls.Add(b);
             }
             bottom.Controls.Add(names);
+            bottom.Controls.Add(events);
             bottom.Controls.Add(status);
             bottom.Resize += delegate { LayoutBottom(); };
 
@@ -106,6 +115,9 @@ namespace LogVice
             AcceptButton = null;
             CancelButton = null;
             KeyDown += delegate (object s, KeyEventArgs e) { if (e.KeyCode == Keys.Escape) { e.Handled = true; if (busy && !loading) stop = true; else Close(); } };
+            EventHandler sizeIntro = delegate { intro.Height = Draw.WrapHeight(intro.Text, intro.Font, Math.Max(Dpi.S(100), ClientSize.Width - Padding.Horizontal)) + Dpi.S(8); };
+            Resize += sizeIntro;
+            Shown += sizeIntro;
             Shown += delegate { search.Box.Focus(); Load(); };
             FormClosing += delegate { stop = true; };
         }
@@ -113,7 +125,7 @@ namespace LogVice
         void LayoutBottom()
         {
             int w = bottom.ClientSize.Width;
-            int y = Dpi.S(36);
+            int y = Dpi.S(62);
             bCancel.Location = new Point(w - bCancel.Width, y);
             bFollow.Location = new Point(bCancel.Left - Dpi.S(8) - bFollow.Width, y);
             status.Width = Math.Max(Dpi.S(80), bFollow.Left - Dpi.S(16));
@@ -123,9 +135,9 @@ namespace LogVice
         {
             busy = b;
             status.Text = text ?? "";
-            bFollow.Enabled = !b && list.SelectedItem != null;
             search.Enabled = !b;
-            names.Enabled = !b;
+            names.Enabled = events.Enabled = !b;
+            UpdateFollowButton();
             bCancel.Text = b ? "Stop" : "Cancel";
             bCancel.Width = bCancel.GetPreferredSize(Size.Empty).Width;
             LayoutBottom();
@@ -148,21 +160,33 @@ namespace LogVice
                     SetBusy(false, Count(all.Count) + " found in the logs. Reading the ConfigMgr client's WMI" + where + "\u2026");
                     busy = true;
                     loading = true;
-                    bFollow.Enabled = list.SelectedItem != null;
-                    search.Enabled = names.Enabled = true;
+                    search.Enabled = names.Enabled = events.Enabled = true;
+                    UpdateFollowButton();
                 });
-                string note;
+                string wmiNote, appNote;
                 List<FollowItem> fromWmi;
-                try { fromWmi = Follow.DiscoverWmi(pc, out note); }
-                catch (Exception ex) { fromWmi = new List<FollowItem>(); note = ex.Message; }
+                try { fromWmi = Follow.DiscoverWmi(pc, out wmiNote); }
+                catch (Exception ex) { fromWmi = new List<FollowItem>(); wmiNote = ex.Message; }
+                Ui(delegate
+                {
+                    if (!loading) return;
+                    all = Follow.Merge(fromWmi, all);
+                    Fill();
+                    status.Text = Count(all.Count) + ". Reading the installed apps" + where + "\u2026";
+                });
+                List<FollowItem> installed;
+                try { installed = Follow.DiscoverInstalled(pc, out appNote); }
+                catch (Exception ex) { installed = new List<FollowItem>(); appNote = ex.Message; }
                 Ui(delegate
                 {
                     if (!loading) return;
                     loading = false;
-                    all = Follow.Merge(fromWmi, all);
+                    all = Follow.Merge(all, installed);
                     Fill();
-                    string s = all.Count == 0 ? "Nothing to follow was found in the client's WMI or logs." : Count(all.Count) + ".";
-                    SetBusy(false, note != null ? s + " " + note : s);
+                    string s = all.Count == 0 ? "Nothing to follow was found." : Count(all.Count) + ".";
+                    if (wmiNote != null) s += " " + wmiNote;
+                    if (appNote != null) s += " " + appNote;
+                    SetBusy(false, s);
                 });
             });
         }
@@ -175,31 +199,58 @@ namespace LogVice
         void Fill()
         {
             string q = search.Text.Trim();
-            FollowItem sel = list.SelectedItem as FollowItem;
+            List<FollowItem> sel = Selected();
             list.BeginUpdate();
             list.Items.Clear();
             foreach (FollowItem it in all)
             {
                 if (q.Length > 0 && (it.Name ?? "").IndexOf(q, StringComparison.CurrentCultureIgnoreCase) < 0
                     && (it.Id ?? "").IndexOf(q, StringComparison.OrdinalIgnoreCase) < 0
-                    && it.Kind.IndexOf(q, StringComparison.CurrentCultureIgnoreCase) < 0) continue;
+                    && it.Kind.IndexOf(q, StringComparison.CurrentCultureIgnoreCase) < 0
+                    && (it.Note ?? "").IndexOf(q, StringComparison.CurrentCultureIgnoreCase) < 0) continue;
                 list.Items.Add(it);
             }
+            bool any = false;
+            foreach (FollowItem it in sel)
+            {
+                int i = list.Items.IndexOf(it);
+                if (i >= 0) { list.SetSelected(i, true); any = true; }
+            }
+            if (!any && list.Items.Count > 0) list.SetSelected(0, true);
             list.EndUpdate();
-            if (sel != null && list.Items.Contains(sel)) list.SelectedItem = sel;
-            else if (list.Items.Count > 0) list.SelectedIndex = 0;
-            bFollow.Enabled = (!busy || loading) && list.SelectedItem != null;
+            UpdateFollowButton();
+        }
+
+        List<FollowItem> Selected()
+        {
+            List<FollowItem> sel = new List<FollowItem>();
+            foreach (object o in list.SelectedItems)
+            {
+                FollowItem it = o as FollowItem;
+                if (it != null) sel.Add(it);
+            }
+            return sel;
+        }
+
+        void UpdateFollowButton()
+        {
+            int n = list.SelectedItems.Count;
+            bFollow.Text = n > 1 ? "Follow " + n.ToString(System.Globalization.CultureInfo.CurrentCulture) : "Follow";
+            bFollow.Width = bFollow.GetPreferredSize(Size.Empty).Width;
+            bFollow.Enabled = (!busy || loading) && n > 0;
+            LayoutBottom();
         }
 
         void Start()
         {
             if (busy && !loading) return;
+            List<FollowItem> chosen = Selected();
+            if (chosen.Count == 0) return;
             loading = false;
-            FollowItem it = list.SelectedItem as FollowItem;
-            if (it == null) return;
             stop = false;
-            SetBusy(true, "Searching the logs for " + it.Name + "…");
-            bool useNames = names.Checked;
+            string what = chosen.Count == 1 ? chosen[0].Name : chosen.Count.ToString(System.Globalization.CultureInfo.CurrentCulture) + " items";
+            SetBusy(true, "Searching the logs for " + what + "\u2026");
+            bool useNames = names.Checked, useEvents = events.Checked;
             string pc = computer;
             Task.Factory.StartNew(delegate
             {
@@ -207,7 +258,7 @@ namespace LogVice
                 string err = null;
                 try
                 {
-                    r = Follow.Scan(pc, it, useNames, delegate { return stop; }, delegate (string file, int i, int n)
+                    r = Follow.Scan(pc, chosen, useNames, useEvents, delegate { return stop; }, delegate (string file, int i, int n)
                     {
                         Ui(delegate { status.Text = "Searching " + file + "  (" + Math.Min(100, (i * 100) / Math.Max(1, n)) + " %)"; });
                     });
@@ -217,9 +268,11 @@ namespace LogVice
                 {
                     if (stop) { SetBusy(false, "Stopped."); return; }
                     if (err != null) { SetBusy(false, err); return; }
-                    if (r.Files.Count == 0) { SetBusy(false, "No lines about " + it.Name + " were found in the client logs."); return; }
+                    if (r.Terms.Count == 0) { SetBusy(false, "There is nothing to search for: the name is too short and there is no ID."); return; }
+                    if (r.Files.Count == 0) { SetBusy(false, "No lines about " + what + " were found in the client logs" + (useEvents ? " or Windows events." : ".") + (r.Note != null ? " " + r.Note : "")); return; }
                     Result = r;
-                    Chosen = it;
+                    Chosen = chosen[0];
+                    ChosenItems.AddRange(chosen);
                     DialogResult = DialogResult.OK;
                     Close();
                 });
@@ -254,7 +307,7 @@ namespace LogVice
             list.BackColor = t.Card;
             list.ForeColor = t.Text;
             bottom.BackColor = t.Bg;
-            names.ForeColor = t.Text;
+            names.ForeColor = events.ForeColor = t.Text;
             status.ForeColor = t.Text2;
             foreach (Control c in Controls)
             {

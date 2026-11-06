@@ -4,6 +4,7 @@ namespace LogVice
     using System.Collections.Generic;
     using System.Globalization;
     using System.IO;
+    using System.Diagnostics.Eventing.Reader;
     using System.Management;
     using System.Security;
     using System.Text;
@@ -16,6 +17,8 @@ namespace LogVice
         public string Id;
         public string State;
         public string Source;
+        public string Note;
+        public bool NameIsTerm;
         public readonly List<string> Terms = new List<string>();
         internal string WmiAppId;
         internal string WmiAppRevision;
@@ -27,6 +30,7 @@ namespace LogVice
             {
                 StringBuilder sb = new StringBuilder(Kind);
                 if (!string.IsNullOrEmpty(State)) sb.Append("  \u00B7  ").Append(State);
+                if (!string.IsNullOrEmpty(Note)) sb.Append("  \u00B7  ").Append(Note);
                 if (!string.IsNullOrEmpty(Id)) sb.Append("  \u00B7  ").Append(Id);
                 return sb.ToString();
             }
@@ -39,7 +43,9 @@ namespace LogVice
         public readonly List<string> Terms = new List<string>();
         public readonly Dictionary<string, int> Hits = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         public int Total;
+        public int Events;
         public string Pattern;
+        public string Note;
     }
 
     public static class Follow
@@ -50,12 +56,39 @@ namespace LogVice
         public const string Package = "Package";
         public const string Baseline = "Configuration baseline";
         public const string IntuneApp = "Intune app";
+        public const string StoreApp = "Store app";
+        public const string Remediation = "Remediation";
+        public const string Script = "Platform script";
+        public const string Installed = "Installed app";
+
+        public static readonly string[] EventChannels =
+        {
+            "Application",
+            "System",
+            "Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider/Admin",
+            "Microsoft-Windows-AppxDeploymentServer/Operational",
+            "Microsoft-Windows-WindowsUpdateClient/Operational"
+        };
+
+        const int EventLimit = 50000;
+        const string UninstallKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
+        const string GuidRx = @"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}";
 
         static readonly Regex RxGuid = new Regex(@"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}", RegexOptions.Compiled);
         static readonly Regex RxDt = new Regex("App DT \"([^\"]+)\" ApplicationDeliveryType - (ScopeId_[^/\\s]+/DeploymentType_[0-9A-Fa-f-]{36}), Revision - (\\d+)", RegexOptions.Compiled);
         static readonly Regex RxUpdate = new Regex(@"Update \((Site_[^/\s]+/SUM_([0-9A-Fa-f-]{36}))\) Name \((.*?)\) ArticleID \((\d+)\)", RegexOptions.Compiled);
         static readonly Regex RxProgram = new Regex(@"package ([A-Z0-9]{3}[0-9A-F]{5}) program (.+?) state change", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex RxIme = new Regex("\\\\?\"Id\\\\?\"\\s*:\\s*\\\\?\"([0-9a-fA-F-]{36})\\\\?\"\\s*,\\s*\\\\?\"Name\\\\?\"\\s*:\\s*\\\\?\"((?:[^\"\\\\]|\\\\[^\"])+)\\\\?\"", RegexOptions.Compiled);
+        static readonly Regex RxProductCode = new Regex("ProductCode[\\\\\"]*\\s*:\\s*[\\\\\"]*\\{?(" + GuidRx + ")", RegexOptions.Compiled);
+        static readonly Regex RxMsiUninstall = new Regex("msiexec(?:\\.exe)?\\s+/x\\s*[\\\\\"]*\\{(" + GuidRx + ")\\}", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex RxPackageId = new Regex("PackageIdentifier[\\\\\"]*\\s*:\\s*[\\\\\"]*([A-Za-z0-9][A-Za-z0-9._-]{2,})", RegexOptions.Compiled);
+        static readonly Regex RxHsPolicy = new Regex(@"\[HS\] (?:ProcessScript PolicyId: |Processing policy with id = )(" + GuidRx + ")", RegexOptions.Compiled);
+        static readonly Regex RxHsCompliance = new Regex(@"compliance result for (" + GuidRx + @") is (True|False)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex RxHsOutput = new Regex(@"\[HS\] std output = ([^\r\n\]]*)", RegexOptions.Compiled);
+        static readonly Regex RxHealthType = new Regex(@"policy (" + GuidRx + @"), type = DeviceHealthScript", RegexOptions.Compiled);
+        static readonly Regex RxPsPolicy = new Regex(@"\[PowerShell\] Processing policy with id = (" + GuidRx + ")", RegexOptions.Compiled);
+        static readonly Regex RxPsResult = new Regex(@"\[PowerShell\][^\r\n]*?Policy id = (" + GuidRx + @"), policy result = (\w+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex RxPsFile = new Regex(@"Policies\\Scripts\\" + GuidRx + "_(" + GuidRx + @")\.ps1", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex RxContent = new Regex(@"Content_([0-9A-Fa-f]{8}-[0-9A-Fa-f-]{27})", RegexOptions.Compiled);
         static readonly Regex RxJob = new Regex(@"(?:CTM job|DTS job|job ID|JobID|job)\s*[:=]?\s*\{?([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})\}?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
@@ -116,8 +149,14 @@ namespace LogVice
             Dictionary<string, FollowItem> byId = new Dictionary<string, FollowItem>(StringComparer.OrdinalIgnoreCase);
             note = null;
             try { FromWmi(computer, items, byId); }
-            catch (UnauthorizedAccessException) { note = "The ConfigMgr client's WMI needs administrator rights, so only items found in the logs are listed."; }
-            catch (Exception ex) { note = "The ConfigMgr client's WMI could not be read (" + Short(ex) + "), so only items found in the logs are listed."; }
+            catch (UnauthorizedAccessException) { note = "The ConfigMgr client's WMI needs administrator rights, so ConfigMgr items come only from the logs."; }
+            catch (ManagementException ex)
+            {
+                note = ex.ErrorCode == ManagementStatus.InvalidNamespace
+                    ? "There is no ConfigMgr client on " + (string.IsNullOrEmpty(computer) || LogLocations.IsLocal(computer) ? "this computer" : computer) + "."
+                    : "The ConfigMgr client's WMI could not be read (" + Short(ex) + "), so ConfigMgr items come only from the logs.";
+            }
+            catch (Exception ex) { note = "The ConfigMgr client's WMI could not be read (" + Short(ex) + "), so ConfigMgr items come only from the logs."; }
             Sort(items);
             return items;
         }
@@ -130,17 +169,24 @@ namespace LogVice
         public static List<FollowItem> Merge(List<FollowItem> a, List<FollowItem> b)
         {
             List<FollowItem> all = new List<FollowItem>(a);
-            Dictionary<string, bool> seen = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, FollowItem> seen = new Dictionary<string, FollowItem>(StringComparer.OrdinalIgnoreCase);
             foreach (FollowItem it in a)
             {
-                seen[it.Id ?? ""] = true;
-                foreach (string t in it.Terms) seen[t] = true;
+                if (!string.IsNullOrEmpty(it.Id)) seen[it.Id] = it;
+                foreach (string t in it.Terms) seen[t] = it;
             }
             foreach (FollowItem it in b)
             {
-                bool dup = seen.ContainsKey(it.Id ?? "");
-                foreach (string t in it.Terms) if (seen.ContainsKey(t)) dup = true;
-                if (!dup) all.Add(it);
+                FollowItem same = null;
+                if (!string.IsNullOrEmpty(it.Id)) seen.TryGetValue(it.Id, out same);
+                foreach (string t in it.Terms) if (same == null) seen.TryGetValue(t, out same);
+                if (same == null)
+                {
+                    all.Add(it);
+                    continue;
+                }
+                if (it.Kind == Installed && same.Kind != Installed && string.IsNullOrEmpty(same.State))
+                    same.State = string.IsNullOrEmpty(it.State) ? "Installed" : "Installed " + it.State;
             }
             Sort(all);
             return all;
@@ -170,9 +216,13 @@ namespace LogVice
                 case Application: return 0;
                 case DeploymentType: return 1;
                 case IntuneApp: return 2;
-                case Update: return 3;
-                case Package: return 4;
-                default: return 5;
+                case StoreApp: return 3;
+                case Remediation: return 4;
+                case Script: return 5;
+                case Update: return 6;
+                case Package: return 7;
+                case Installed: return 9;
+                default: return 8;
             }
         }
 
@@ -379,12 +429,16 @@ namespace LogVice
 
         static void FromLogs(List<string> files, List<FollowItem> items, Dictionary<string, FollowItem> byId)
         {
+            HashSet<string> health = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            List<string> later = new List<string>();
             foreach (string f in files)
             {
                 string name = Path.GetFileName(f).ToLowerInvariant();
                 int kind = name.StartsWith("appenforce") ? 1 : name.StartsWith("updatesdeployment") ? 2 : name.StartsWith("execmgr") ? 3
-                    : name.StartsWith("intunemanagementextension") || name.StartsWith("appworkload") ? 4 : 0;
+                    : name.StartsWith("intunemanagementextension") || name.StartsWith("appworkload") ? 4
+                    : name.StartsWith("healthscripts") ? 5 : name.StartsWith("agentexecutor") ? 6 : 0;
                 if (kind == 0) continue;
+                if (kind == 4 || kind == 6) later.Add(f);
                 string text;
                 try { text = ReadText(f); } catch (Exception) { continue; }
                 if (kind == 1)
@@ -435,22 +489,250 @@ namespace LogVice
                         items.Add(it);
                     }
                 }
-                else
+                else if (kind == 4)
                 {
-                    foreach (Match m in RxIme.Matches(text))
+                    IntuneApps(text, items, byId);
+                    foreach (Match m in RxHealthType.Matches(text)) health.Add(m.Groups[1].Value);
+                }
+                else if (kind == 5)
+                {
+                    Remediations(text, items, byId);
+                }
+            }
+            foreach (FollowItem it in items) if (it.Kind == Remediation) health.Add(it.Id);
+            foreach (string f in later)
+            {
+                string text;
+                try { text = ReadText(f); } catch (Exception) { continue; }
+                Scripts(text, health, items, byId);
+            }
+        }
+
+        static void IntuneApps(string text, List<FollowItem> items, Dictionary<string, FollowItem> byId)
+        {
+            MatchCollection all = RxIme.Matches(text);
+            for (int i = 0; i < all.Count; i++)
+            {
+                Match m = all[i];
+                string id = m.Groups[1].Value;
+                int end = i + 1 < all.Count ? all[i + 1].Index : Math.Min(text.Length, m.Index + 30000);
+                string block = text.Substring(m.Index, Math.Max(0, Math.Min(end, m.Index + 30000) - m.Index));
+                FollowItem it;
+                if (!byId.TryGetValue(id, out it))
+                {
+                    string n = m.Groups[2].Value.Replace("\\\\", "\\").Replace("\\/", "/");
+                    if (n.Length == 0) continue;
+                    it = new FollowItem();
+                    it.Kind = IntuneApp;
+                    it.Name = n;
+                    it.Id = id;
+                    it.Source = "logs";
+                    it.Terms.Add(id);
+                    Add(items, byId, it);
+                }
+                if (it.Kind != IntuneApp && it.Kind != StoreApp) continue;
+                Match pc = RxProductCode.Match(block);
+                if (!pc.Success) pc = RxMsiUninstall.Match(block);
+                if (pc.Success && AddTerm(it, pc.Groups[1].Value.ToUpperInvariant()))
+                {
+                    byId[pc.Groups[1].Value] = it;
+                    if (it.Note == null) it.Note = "MSI {" + pc.Groups[1].Value.ToUpperInvariant() + "}";
+                }
+                Match pk = RxPackageId.Match(block);
+                if (pk.Success)
+                {
+                    it.Kind = StoreApp;
+                    if (AddTerm(it, pk.Groups[1].Value)) it.Note = pk.Groups[1].Value;
+                }
+            }
+        }
+
+        static void Remediations(string text, List<FollowItem> items, Dictionary<string, FollowItem> byId)
+        {
+            string current = null;
+            foreach (string line in text.Split('\n'))
+            {
+                Match m = RxHsPolicy.Match(line);
+                if (m.Success)
+                {
+                    current = m.Groups[1].Value;
+                    if (!byId.ContainsKey(current))
                     {
-                        string id = m.Groups[1].Value;
-                        if (byId.ContainsKey(id)) continue;
-                        string n = m.Groups[2].Value.Replace("\\\\", "\\").Replace("\\/", "/");
-                        if (n.Length == 0) continue;
                         FollowItem it = new FollowItem();
-                        it.Kind = IntuneApp;
-                        it.Name = n;
+                        it.Kind = Remediation;
+                        it.Name = "Remediation " + current.Substring(0, 8);
+                        it.Id = current;
+                        it.Source = "logs";
+                        it.Terms.Add(current);
+                        Add(items, byId, it);
+                    }
+                    continue;
+                }
+                FollowItem item;
+                Match c = RxHsCompliance.Match(line);
+                if (c.Success && byId.TryGetValue(c.Groups[1].Value, out item) && item.Kind == Remediation)
+                {
+                    item.State = string.Equals(c.Groups[2].Value, "True", StringComparison.OrdinalIgnoreCase) ? "Compliant" : "Not compliant";
+                    continue;
+                }
+                Match o = RxHsOutput.Match(line);
+                if (o.Success && current != null && byId.TryGetValue(current, out item) && item.Kind == Remediation)
+                {
+                    string output = o.Groups[1].Value.Trim();
+                    if (output.Length > 0) item.Note = "Output: " + (output.Length > 120 ? output.Substring(0, 117) + "..." : output);
+                }
+            }
+        }
+
+        static void Scripts(string text, HashSet<string> health, List<FollowItem> items, Dictionary<string, FollowItem> byId)
+        {
+            foreach (Regex rx in new Regex[] { RxPsPolicy, RxPsFile, RxPsResult })
+                foreach (Match m in rx.Matches(text))
+                {
+                    string id = m.Groups[1].Value;
+                    if (health.Contains(id)) continue;
+                    FollowItem it;
+                    if (!byId.TryGetValue(id, out it))
+                    {
+                        if (rx == RxPsResult) continue;
+                        it = new FollowItem();
+                        it.Kind = Script;
+                        it.Name = "Platform script " + id.Substring(0, 8);
                         it.Id = id;
                         it.Source = "logs";
                         it.Terms.Add(id);
                         Add(items, byId, it);
                     }
+                    if (rx == RxPsResult && it.Kind == Script) it.State = m.Groups[2].Value;
+                }
+        }
+
+        static bool AddTerm(FollowItem it, string term)
+        {
+            if (string.IsNullOrEmpty(term) || Contains(it.Terms, term)) return false;
+            it.Terms.Add(term);
+            return true;
+        }
+
+        public static List<FollowItem> DiscoverInstalled(string computer, out string note)
+        {
+            note = null;
+            List<FollowItem> items = new List<FollowItem>();
+            try
+            {
+                if (string.IsNullOrEmpty(computer) || LogLocations.IsLocal(computer)) InstalledLocal(items);
+                else InstalledRemote(computer, items);
+            }
+            catch (UnauthorizedAccessException) { note = "Installed apps need administrator rights on that computer."; }
+            catch (Exception ex) { note = "Installed apps could not be read (" + Short(ex) + ")."; }
+            Sort(items);
+            return items;
+        }
+
+        static void InstalledLocal(List<FollowItem> items)
+        {
+            HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (Microsoft.Win32.RegistryView view in new Microsoft.Win32.RegistryView[] { Microsoft.Win32.RegistryView.Registry64, Microsoft.Win32.RegistryView.Registry32 })
+            {
+                try
+                {
+                    using (Microsoft.Win32.RegistryKey b = Microsoft.Win32.RegistryKey.OpenBaseKey(Microsoft.Win32.RegistryHive.LocalMachine, view))
+                        ReadUninstall(b, items, seen);
+                }
+                catch (Exception) { }
+            }
+            try { ReadUninstall(Microsoft.Win32.Registry.CurrentUser, items, seen); }
+            catch (Exception) { }
+        }
+
+        public static void ReadUninstall(Microsoft.Win32.RegistryKey root, List<FollowItem> items, HashSet<string> seen)
+        {
+            using (Microsoft.Win32.RegistryKey u = root.OpenSubKey(UninstallKey))
+            {
+                if (u == null) return;
+                foreach (string sub in u.GetSubKeyNames())
+                {
+                    try
+                    {
+                        using (Microsoft.Win32.RegistryKey k = u.OpenSubKey(sub))
+                        {
+                            if (k == null) continue;
+                            object sc = k.GetValue("SystemComponent");
+                            FollowItem it = InstalledItem(sub, k.GetValue("DisplayName") as string, Convert.ToString(k.GetValue("DisplayVersion"), CultureInfo.InvariantCulture),
+                                k.GetValue("Publisher") as string, sc is int ? (int)sc : 0, k.GetValue("ParentKeyName") as string, k.GetValue("ReleaseType") as string);
+                            AddInstalled(items, seen, it);
+                        }
+                    }
+                    catch (Exception) { }
+                }
+            }
+        }
+
+        public static FollowItem InstalledItem(string key, string name, string version, string publisher, int systemComponent, string parent, string releaseType)
+        {
+            if (string.IsNullOrWhiteSpace(name) || systemComponent == 1 || !string.IsNullOrEmpty(parent)) return null;
+            if (!string.IsNullOrEmpty(releaseType) && (releaseType.IndexOf("Update", StringComparison.OrdinalIgnoreCase) >= 0 || releaseType.IndexOf("Hotfix", StringComparison.OrdinalIgnoreCase) >= 0)) return null;
+            FollowItem it = new FollowItem();
+            it.Kind = Installed;
+            it.Name = name.Trim();
+            it.State = string.IsNullOrWhiteSpace(version) ? null : version.Trim();
+            it.Note = string.IsNullOrWhiteSpace(publisher) ? null : publisher.Trim();
+            it.Source = "registry";
+            it.NameIsTerm = true;
+            string k = (key ?? "").Trim();
+            Match m = RxGuid.Match(k);
+            if (m.Success && k.StartsWith("{", StringComparison.Ordinal) && k.Length == 38)
+            {
+                it.Id = "{" + m.Value.ToUpperInvariant() + "}";
+                it.Terms.Add(m.Value.ToUpperInvariant());
+            }
+            return it;
+        }
+
+        static void AddInstalled(List<FollowItem> items, HashSet<string> seen, FollowItem it)
+        {
+            if (it == null) return;
+            if (!seen.Add(it.Name + "|" + it.State + "|" + it.Id)) return;
+            items.Add(it);
+        }
+
+        static void InstalledRemote(string computer, List<FollowItem> items)
+        {
+            const uint Hklm = 0x80000002;
+            HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            ManagementScope scope = Scope(computer, @"root\default");
+            using (ManagementClass reg = new ManagementClass(scope, new ManagementPath("StdRegProv"), null))
+            {
+                foreach (string path in new string[] { UninstallKey, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall" })
+                {
+                    string[] subs = RegCall(reg, "EnumKey", Hklm, path, null) as string[];
+                    if (subs == null) continue;
+                    foreach (string sub in subs)
+                    {
+                        string kp = path + "\\" + sub;
+                        string name = RegCall(reg, "GetStringValue", Hklm, kp, "DisplayName") as string;
+                        if (string.IsNullOrWhiteSpace(name)) continue;
+                        object sc = RegCall(reg, "GetDWORDValue", Hklm, kp, "SystemComponent");
+                        FollowItem it = InstalledItem(sub, name, RegCall(reg, "GetStringValue", Hklm, kp, "DisplayVersion") as string,
+                            RegCall(reg, "GetStringValue", Hklm, kp, "Publisher") as string, sc != null ? Convert.ToInt32(sc, CultureInfo.InvariantCulture) : 0,
+                            RegCall(reg, "GetStringValue", Hklm, kp, "ParentKeyName") as string, null);
+                        AddInstalled(items, seen, it);
+                    }
+                }
+            }
+        }
+
+        static object RegCall(ManagementClass reg, string method, uint hive, string key, string value)
+        {
+            using (ManagementBaseObject input = reg.GetMethodParameters(method))
+            {
+                input["hDefKey"] = hive;
+                input["sSubKeyName"] = key;
+                if (value != null) input["sValueName"] = value;
+                using (ManagementBaseObject output = reg.InvokeMethod(method, input, null))
+                {
+                    if (output == null || Convert.ToUInt32(output["ReturnValue"], CultureInfo.InvariantCulture) != 0) return null;
+                    return method == "EnumKey" ? output["sNames"] : method == "GetDWORDValue" ? output["uValue"] : output["sValue"];
                 }
             }
         }
@@ -499,12 +781,104 @@ namespace LogVice
             }
         }
 
-        public static FollowResult Scan(string computer, FollowItem item, bool names, Func<bool> cancelled, Action<string, int, int> progress)
+        public static FollowResult Scan(string computer, IList<FollowItem> items, bool names, bool events, Func<bool> cancelled, Action<string, int, int> progress)
         {
-            try { Expand(computer, item); } catch (Exception) { }
-            FollowResult r = Start(item, names);
+            foreach (FollowItem it in items)
+            {
+                try { Expand(computer, it); } catch (Exception) { }
+            }
+            FollowResult r = Start(items, names);
+            if (r.Terms.Count == 0) return r;
             ScanFiles(LogFiles(Folders(computer)), r, cancelled, progress);
+            if (events && (cancelled == null || !cancelled())) ScanEvents(computer, r, cancelled, progress);
             return r;
+        }
+
+        public static void ScanEvents(string computer, FollowResult r, Func<bool> cancelled, Action<string, int, int> progress)
+        {
+            bool local = string.IsNullOrEmpty(computer) || LogLocations.IsLocal(computer);
+            string[] low = new string[r.Terms.Count];
+            for (int t = 0; t < low.Length; t++) low[t] = r.Terms[t].ToLowerInvariant();
+            object session;
+            try { session = OpenSession(local ? null : computer); }
+            catch (Exception ex)
+            {
+                r.Note = "Windows events were not searched (" + Short(ex) + ").";
+                return;
+            }
+            int failed = 0;
+            for (int c = 0; c < EventChannels.Length; c++)
+            {
+                if (cancelled != null && cancelled()) break;
+                string channel = EventChannels[c];
+                if (progress != null) progress(EventLogs.Short(channel) + " events", c, EventChannels.Length);
+                int hits;
+                try { hits = CountEvents(session, channel, low, cancelled); }
+                catch (Exception) { failed++; continue; }
+                if (hits <= 0) continue;
+                string path = EventLogs.Make(local ? null : computer, channel);
+                r.Files.Add(path);
+                r.Hits[path] = hits;
+                r.Total += hits;
+                r.Events += hits;
+            }
+            if (failed == EventChannels.Length) r.Note = "Windows events could not be read" + (local ? "." : " on " + computer + ". Enable the firewall rule group Remote Event Log Management on it.");
+        }
+
+        static object OpenSession(string computer)
+        {
+            return EventLogs.Session(computer);
+        }
+
+        static int CountEvents(object session, string channel, string[] low, Func<bool> cancelled)
+        {
+            int hits = 0;
+            EventLogQuery q = new EventLogQuery(channel, PathType.LogName);
+            q.Session = (EventLogSession)session;
+            q.ReverseDirection = true;
+            try
+            {
+                using (EventLogReader reader = new EventLogReader(q))
+                {
+                    for (int n = 0; n < EventLimit; n++)
+                    {
+                        if ((n & 1023) == 0 && cancelled != null && cancelled()) break;
+                        EventRecord e = reader.ReadEvent();
+                        if (e == null) break;
+                        using (e) if (EventMatches(e, low)) hits++;
+                    }
+                }
+            }
+            catch (EventLogNotFoundException) { return 0; }
+            return hits;
+        }
+
+        static bool EventMatches(EventRecord e, string[] low)
+        {
+            StringBuilder sb = new StringBuilder();
+            try { sb.Append(e.ProviderName).Append(' '); } catch (Exception) { }
+            try
+            {
+                IList<EventProperty> props = e.Properties;
+                if (props != null)
+                    foreach (EventProperty p in props)
+                    {
+                        object v = p.Value;
+                        if (v != null && !(v is byte[])) sb.Append(Convert.ToString(v, CultureInfo.InvariantCulture)).Append(' ');
+                    }
+            }
+            catch (Exception) { }
+            if (!AnyTerm(sb.ToString(), low)) return false;
+            string desc = null;
+            try { desc = e.FormatDescription(); } catch (Exception) { }
+            return string.IsNullOrEmpty(desc) || AnyTerm(desc, low);
+        }
+
+        public static bool AnyTerm(string text, string[] lowerTerms)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            foreach (string t in lowerTerms) if (t.Length > 0 && Find(text, t, 0) >= 0) return true;
+            return false;
         }
 
         public static void ScanFiles(List<string> files, FollowResult r, Func<bool> cancelled, Action<string, int, int> progress)
@@ -544,9 +918,18 @@ namespace LogVice
 
         public static FollowResult Start(FollowItem item, bool names)
         {
+            return Start(new FollowItem[] { item }, names);
+        }
+
+        public static FollowResult Start(IList<FollowItem> items, bool names)
+        {
             FollowResult r = new FollowResult();
-            foreach (string t in item.Terms) if (t.Length >= 4 && !Contains(r.Terms, t)) r.Terms.Add(t);
-            if (names && !string.IsNullOrEmpty(item.Name) && item.Name.Trim().Length >= 5 && !Contains(r.Terms, item.Name.Trim())) r.Terms.Add(item.Name.Trim());
+            foreach (FollowItem item in items)
+            {
+                foreach (string t in item.Terms) if (t.Length >= 4 && !Contains(r.Terms, t)) r.Terms.Add(t);
+                string n = (item.Name ?? "").Trim();
+                if ((names || item.NameIsTerm) && n.Length >= (item.NameIsTerm ? 4 : 5) && !Contains(r.Terms, n)) r.Terms.Add(n);
+            }
             return r;
         }
 

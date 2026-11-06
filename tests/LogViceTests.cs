@@ -55,6 +55,10 @@ namespace LogVice.Tests
             AbsorbMatchesSequential();
             FollowChain();
             FollowIntune();
+            FollowIntuneMore();
+            FollowSeveral();
+            InstalledApps();
+            EventsWithoutEventLog();
             UpdateRelease();
             Notes();
 
@@ -247,6 +251,113 @@ namespace LogVice.Tests
             int heads = 0, versions = Regex.Matches(all, "^## (LogVice|Trace Lens) ", RegexOptions.Multiline).Count;
             foreach (NoteBlock nb in ReleaseNotes.Parse(all)) if (nb.Kind == NoteKind.Heading) heads++;
             Check(heads == versions && versions > 10, "the whole changelog reads as " + versions + " version sections");
+        }
+
+        static List<string> FollowFiles()
+        {
+            return Follow.LogFiles(new string[] { Path.Combine(data, "follow") });
+        }
+
+        static void FollowIntuneMore()
+        {
+            List<string> files = FollowFiles();
+            List<FollowItem> items = Follow.DiscoverFiles(files);
+            FollowItem msi = items.Find(delegate (FollowItem x) { return x.Name == "Fabrikam Viewer"; });
+            Check(msi != null && msi.Kind == Follow.IntuneApp && msi.Terms.Contains("B7C8D9E0-1F2A-4B3C-9D4E-5F6A7B8C9D0E"), "Intune app picks up the MSI product code from its detection rule");
+            FollowItem store = items.Find(delegate (FollowItem x) { return x.Name == "Contoso Notes"; });
+            Check(store != null && store.Kind == Follow.StoreApp && store.Terms.Contains("9NCONTOSO123"), "Store app is recognised by its package identifier");
+            FollowItem rem = items.Find(delegate (FollowItem x) { return x.Kind == Follow.Remediation; });
+            Check(rem != null && rem.Id == "5b6c7d8e-9f0a-4b1c-8d2e-3f4a5b6c7d8e" && rem.State == "Not compliant" && rem.Note == "Output: Disk cleanup is not needed",
+                "remediation found in HealthScripts.log with its result and output");
+            FollowItem ps = items.Find(delegate (FollowItem x) { return x.Kind == Follow.Script; });
+            bool onlyOne = items.FindAll(delegate (FollowItem x) { return x.Kind == Follow.Script; }).Count == 1;
+            Check(ps != null && onlyOne && ps.Id == "8f9e0d1c-2b3a-4c5d-9e8f-7a6b5c4d3e2f" && ps.State == "Success", "platform script found, and a remediation is not listed as a script");
+            if (store != null)
+            {
+                FollowResult r = Follow.Start(store, false);
+                Follow.ScanFiles(files, r, null, null);
+                Check(r.Total == 3 && r.Files.Count == 2, "following a Store app finds its WinGet lines in AgentExecutor.log (found " + r.Total + " in " + r.Files.Count + ")");
+            }
+            if (msi != null)
+            {
+                FollowResult r = Follow.Start(msi, false);
+                Follow.ScanFiles(files, r, null, null);
+                Check(r.Total == 2 && r.Files.Count == 1, "following an MSI app finds its product code detection (found " + r.Total + " in " + r.Files.Count + ")");
+            }
+            if (rem != null)
+            {
+                FollowResult r = Follow.Start(rem, false);
+                Follow.ScanFiles(files, r, null, null);
+                Check(r.Total == 4 && r.Files.Count == 3, "following a remediation finds it in HealthScripts, AgentExecutor and the IME log (found " + r.Total + " in " + r.Files.Count + ")");
+            }
+        }
+
+        static void FollowSeveral()
+        {
+            List<string> files = FollowFiles();
+            List<FollowItem> items = Follow.DiscoverFiles(files);
+            List<FollowItem> pick = items.FindAll(delegate (FollowItem x) { return x.Name == "Fabrikam Viewer" || x.Name == "Contoso Notes"; });
+            FollowResult r = Follow.Start(pick, false);
+            Follow.ScanFiles(files, r, null, null);
+            Check(pick.Count == 2 && r.Terms.Count == 4 && r.Total == 4 && r.Files.Count == 2, "following two items gives one timeline, each line once (found " + r.Total + " in " + r.Files.Count + ")");
+        }
+
+        static void InstalledApps()
+        {
+            Check(Follow.InstalledItem("{11111111-2222-3333-4444-555555555555}", "Tool", "1.0", "Me", 1, null, null) == null
+                && Follow.InstalledItem("KB123", "Update for Tool", "1", null, 0, "Tool", null) == null
+                && Follow.InstalledItem("X", "Security Update", "1", null, 0, null, "Security Update") == null
+                && Follow.InstalledItem("X", "  ", "1", null, 0, null, null) == null,
+                "installed apps leave out system components, updates and entries without a name");
+            FollowItem a = Follow.InstalledItem("{b7c8d9e0-1f2a-4b3c-9d4e-5f6a7b8c9d0e}", "Fabrikam Viewer 2.1", "2.1.0", "Fabrikam", 0, null, null);
+            FollowItem b = Follow.InstalledItem("FabrikamTool", "Fabrikam Tool", "5", null, 0, null, null);
+            Check(a != null && a.Id == "{B7C8D9E0-1F2A-4B3C-9D4E-5F6A7B8C9D0E}" && a.Terms.Count == 1 && a.NameIsTerm && b != null && b.Id == null && b.Terms.Count == 0,
+                "installed app takes its MSI product code from the key name");
+            FollowResult r = Follow.Start(b, false);
+            Check(r.Terms.Count == 1 && r.Terms[0] == "Fabrikam Tool", "an installed app without a product code is followed by its name");
+
+            const string root = @"Software\LogViceTests";
+            Microsoft.Win32.RegistryKey baseKey = null;
+            try
+            {
+                baseKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(root);
+                using (Microsoft.Win32.RegistryKey k = baseKey.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{AAAABBBB-CCCC-4DDD-8EEE-FFFF00001111}"))
+                {
+                    k.SetValue("DisplayName", "Northwind Reports");
+                    k.SetValue("DisplayVersion", "4.2");
+                    k.SetValue("Publisher", "Northwind");
+                }
+                using (Microsoft.Win32.RegistryKey k = baseKey.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Hidden"))
+                {
+                    k.SetValue("DisplayName", "Hidden part");
+                    k.SetValue("SystemComponent", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                }
+                List<FollowItem> list = new List<FollowItem>();
+                Follow.ReadUninstall(baseKey, list, new HashSet<string>());
+                Check(list.Count == 1 && list[0].Name == "Northwind Reports" && list[0].State == "4.2" && list[0].Note == "Northwind", "installed apps are read from the Uninstall key");
+            }
+            catch (Exception ex) { Fail("installed apps are read from the Uninstall key: " + ex.Message); }
+            finally
+            {
+                if (baseKey != null) baseKey.Close();
+                try { Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(root); } catch (Exception) { }
+            }
+
+            List<FollowItem> intune = Follow.DiscoverFiles(FollowFiles());
+            List<FollowItem> merged = Follow.Merge(intune, new List<FollowItem> { a });
+            FollowItem viewer = merged.Find(delegate (FollowItem x) { return x.Name == "Fabrikam Viewer"; });
+            bool gone = !merged.Exists(delegate (FollowItem x) { return x.Kind == Follow.Installed && x.Name == "Fabrikam Viewer 2.1"; });
+            Check(viewer != null && gone && viewer.State == "Installed 2.1.0", "an installed app that Intune deploys is shown once, on the Intune app");
+        }
+
+        static void EventsWithoutEventLog()
+        {
+            FollowResult r = Follow.Start(new FollowItem[0], false);
+            r.Terms.Add("Northwind Reports");
+            bool ok = true;
+            try { Follow.ScanEvents(null, r, null, null); }
+            catch (Exception) { ok = false; }
+            Check(ok, "searching Windows events never throws, also where there are no event logs");
         }
 
         static void UpdateRelease()

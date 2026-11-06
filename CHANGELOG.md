@@ -6,7 +6,9 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 
 | Version | Highlights | Upgrade |
 |---|---|---|
-| **1.5.4** (latest) | New app icon, and an icon of its own for log files | Run the MSI, or select Update in LogVice. It replaces Trace Lens and any earlier version |
+| **1.5.5** (latest) | Follow an item: Intune Store apps, remediations, scripts and installed apps, several items at once, Windows events in the timeline | Run the MSI, or select Update in LogVice. It replaces Trace Lens and any earlier version |
+| 1.5.5 | Follow an item: Store apps, remediations, platform scripts and installed apps, several items at once, Windows events in the timeline |
+| 1.5.4 | New app icon, and an icon of its own for log files | |
 | 1.5.3 | What's new in the app, release notes in the Update dialog, winget manifests with every release | |
 | 1.5.2 | Install updates from LogVice with one click, checked against the release checksums | |
 | 1.5.1 | Faster loading, filtering and Follow an item, automatic tests | |
@@ -19,6 +21,27 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 | 1.1.0 | Windows 11 style with light and dark themes | |
 
 ![LogVice log view](docs/images/log-light.png)
+
+## LogVice 1.5.5
+
+LogVice 1.5.5 makes Follow an item broader: more kinds of items, several at once, and the Windows events that go with them.
+
+| | |
+|---|---|
+| Product code | `{BC1C2600-3FA3-4AA7-8AF7-576F60674AB7}` |
+| Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (unchanged) |
+| Files | `LogVice.msi`, `LogVice.exe`, `SHA256SUMS.txt` |
+
+### New in 1.5.5
+
+- **More to follow from Intune**: Follow an item now lists Store apps, remediations and platform scripts from the Intune Management Extension logs, next to Win32 apps.
+    - Win32 apps bring their MSI product code from the detection rule, so detection and Windows Installer lines are found too.
+    - Store apps bring their package identifier, so the WinGet lines in `AgentExecutor.log` are found too.
+    - Remediations show their last result and detection output. Intune does not write their names to the device, so remediations and platform scripts are listed by policy ID.
+- **Installed apps**: every app in Apps & features can be followed, with its MSI product code when it has one. An app that Intune deploys is shown once, on the Intune app, with its installed version. On another computer the list is read through WMI.
+- **Several items at once**: hold Ctrl or Shift to pick more than one, for example an app and its dependency, and follow them in one timeline.
+- **Windows events in the timeline**: with **Also search Windows events** on, Follow an item also looks through Application, System, the MDM diagnostics log, AppX deployment and Windows Update, and adds the event logs with matches to the timeline.
+- On a computer without the ConfigMgr client, the dialog now says so, instead of showing a WMI error.
 
 ## LogVice 1.5.4
 
@@ -279,13 +302,14 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 
 | Package | How to upgrade from an earlier version |
 | --- | --- |
-| LogVice.msi | Run the 1.5.4 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
+| LogVice.msi | Run the 1.5.5 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
 | LogVice.exe (portable) | Delete TraceLens.exe and use LogVice.exe. Your settings are copied on first start |
 
 | MSI setting | Value |
 | --- | --- |
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {A9263E20-7EF1-4668-898D-60331A11E33D} /qn` |
+| Uninstall command | `msiexec /x {BC1C2600-3FA3-4AA7-8AF7-576F60674AB7} /qn` |
+| Product code (1.5.5) | `{BC1C2600-3FA3-4AA7-8AF7-576F60674AB7}` |
 | Product code (1.5.4) | `{A9263E20-7EF1-4668-898D-60331A11E33D}` |
 | Product code (1.5.3) | `{E356B345-5FFA-47BF-BCBE-EE9668F28AB1}` |
 | Product code (1.5.2) | `{4050591A-C0F1-4E84-894A-B8D08AA798B6}` |
@@ -304,7 +328,7 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 | Install context | System, per machine |
 | Restart | Not needed |
 
-In Intune or ConfigMgr, add 1.5.4 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
+In Intune or ConfigMgr, add 1.5.5 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
 
 ## Known limitations
 

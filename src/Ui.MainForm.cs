@@ -898,11 +898,11 @@ namespace LogVice
             {
                 f.ApplyTheme(theme);
                 if (f.ShowDialog(this) != DialogResult.OK || f.Result == null || f.Result.Files.Count == 0) return;
-                ShowFollow(f.Chosen, f.Result);
+                ShowFollow(f.ChosenItems, f.Result);
             }
         }
 
-        void ShowFollow(FollowItem item, FollowResult r)
+        void ShowFollow(List<FollowItem> items, FollowResult r)
         {
             suppress = true;
             try
@@ -914,7 +914,12 @@ namespace LogVice
             ApplyFilterText();
             tFilter.Badge = "Following";
             OpenFiles(r.Files.ToArray(), false, false);
-            Note("Following " + item.Name + ": " + r.Total.ToString("N0") + (r.Total == 1 ? " line in " : " lines in ") + r.Files.Count + (r.Files.Count == 1 ? " log" : " logs") + ". Clear the filter to see everything around it.");
+            int channels = 0;
+            foreach (string f in r.Files) if (EventLogs.IsChannel(f)) channels++;
+            int logs = r.Files.Count - channels;
+            string what = items.Count == 1 ? items[0].Name : items.Count + " items";
+            string where = (logs > 0 ? logs + (logs == 1 ? " log" : " logs") : "") + (logs > 0 && channels > 0 ? " and " : "") + (channels > 0 ? channels + (channels == 1 ? " event log" : " event logs") : "");
+            Note("Following " + what + ": " + r.Total.ToString("N0") + (r.Total == 1 ? " line in " : " lines in ") + where + ". Clear the filter to see everything around it." + (r.Note != null ? " " + r.Note : ""));
         }
 
         UpdateInfo pendingUpdate;

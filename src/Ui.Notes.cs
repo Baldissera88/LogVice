@@ -137,7 +137,7 @@ namespace LogVice
                     FlushPara(blocks, para);
                     NoteBlock b = new NoteBlock();
                     b.Kind = NoteKind.Bullet;
-                    b.Depth = Math.Min(3, (line.Length - trimmed.Length) / 2);
+                    b.Depth = Math.Min(3, (line.Length - trimmed.Length + 3) / 4);
                     Inline(trimmed.Substring(2).Trim(), false, null, b.Runs);
                     blocks.Add(b);
                     continue;
