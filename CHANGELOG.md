@@ -6,7 +6,8 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 
 | Version | Highlights | Upgrade |
 |---|---|---|
-| **1.5.3** (latest) | What's new in the app, release notes in the Update dialog, winget manifests with every release | Run the MSI. It replaces Trace Lens and any earlier version |
+| **1.5.4** (latest) | New app icon, and an icon of its own for log files | Run the MSI, or select Update in LogVice. It replaces Trace Lens and any earlier version |
+| 1.5.3 | What's new in the app, release notes in the Update dialog, winget manifests with every release | |
 | 1.5.2 | Install updates from LogVice with one click, checked against the release checksums | |
 | 1.5.1 | Faster loading, filtering and Follow an item, automatic tests | |
 | 1.5.0 | Follow an item through every client log, update check with ADMX policy, releases built by GitHub Actions | |
@@ -18,6 +19,23 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 | 1.1.0 | Windows 11 style with light and dark themes | |
 
 ![LogVice log view](docs/images/log-light.png)
+
+## LogVice 1.5.4
+
+LogVice 1.5.4 has a new icon, and log files get an icon of their own.
+
+| | |
+|---|---|
+| Product code | `{A9263E20-7EF1-4668-898D-60331A11E33D}` |
+| Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (unchanged) |
+| Files | `LogVice.msi`, `LogVice.exe`, `SHA256SUMS.txt` |
+
+### New in 1.5.4
+
+- **New app icon**: the lines of a log under a magnifier, in neon cyan and pink on navy. It replaces the synthwave sun on `LogVice.exe`, in the Start menu, on the taskbar, on the start page and in About.
+- **An icon for log files**: with the MSI, `.log`, `.lo_`, `.etl` and `.evtx` files that open with LogVice show a document with the same magnifier, so log files and the app are easy to tell apart in File Explorer.
+- Both icons are drawn as vector shapes with heavier lines at 16 to 24 pixels, so they stay sharp in the Details view and at every display scale. The sources are in the `art` folder.
+- After an update LogVice asks Windows to refresh file icons. If File Explorer still shows the old icon, sign out and in again.
 
 ## LogVice 1.5.3
 
@@ -261,13 +279,14 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 
 | Package | How to upgrade from an earlier version |
 | --- | --- |
-| LogVice.msi | Run the 1.5.3 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
+| LogVice.msi | Run the 1.5.4 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
 | LogVice.exe (portable) | Delete TraceLens.exe and use LogVice.exe. Your settings are copied on first start |
 
 | MSI setting | Value |
 | --- | --- |
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {E356B345-5FFA-47BF-BCBE-EE9668F28AB1} /qn` |
+| Uninstall command | `msiexec /x {A9263E20-7EF1-4668-898D-60331A11E33D} /qn` |
+| Product code (1.5.4) | `{A9263E20-7EF1-4668-898D-60331A11E33D}` |
 | Product code (1.5.3) | `{E356B345-5FFA-47BF-BCBE-EE9668F28AB1}` |
 | Product code (1.5.2) | `{4050591A-C0F1-4E84-894A-B8D08AA798B6}` |
 | Product code (1.5.1) | `{6F8A9909-3D0A-40F6-9C43-8E3FA7DD7BFD}` |
@@ -285,7 +304,7 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 | Install context | System, per machine |
 | Restart | Not needed |
 
-In Intune or ConfigMgr, add 1.5.3 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
+In Intune or ConfigMgr, add 1.5.4 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
 
 ## Known limitations
 
@@ -305,6 +324,7 @@ In Intune or ConfigMgr, add 1.5.3 as a new app that supersedes the earlier versi
 
 | Version | Summary |
 | --- | --- |
+| 1.5.4 | New app icon, an icon of its own for log files, icons drawn as vectors |
 | 1.5.3 | What's new bar after an update, About > What's new, release notes in the Update dialog, winget manifests |
 | 1.5.2 | Install updates from LogVice: download from GitHub, check against SHA256SUMS.txt, install and reopen |
 | 1.5.1 | Faster loading, parallel reading of several logs, parallel filters and Find, Follow an item about 5 times faster, automatic tests |

@@ -926,7 +926,11 @@ namespace LogVice
         {
             string last = Settings.Get("LastVersion");
             bool known = !string.IsNullOrEmpty(last) || Settings.Get("UpdateChecked") != null || Settings.Recent().Count > 0;
-            if (last != Program.Version) Settings.Set("LastVersion", Program.Version);
+            if (last != Program.Version)
+            {
+                Settings.Set("LastVersion", Program.Version);
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate { NativeMethods.RefreshFileIcons(); });
+            }
             if (!known || last == Program.Version) return;
             if (!string.IsNullOrEmpty(last) && !Updates.IsNewer(Program.Version, last)) return;
             notesSince = string.IsNullOrEmpty(last) ? null : last;

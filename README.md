@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 1.5.3" src="https://img.shields.io/badge/version-1.5.3-005fb8">
+  <img alt="Version 1.5.4" src="https://img.shields.io/badge/version-1.5.4-005fb8">
   <a href="../../actions/workflows/build.yml"><img alt="Build" src="../../actions/workflows/build.yml/badge.svg"></a>
   <img alt="Windows 10, 11 and Server 2016 or later" src="https://img.shields.io/badge/Windows-10%20%7C%2011%20%7C%20Server%202016%2B-0078d4">
   <img alt=".NET Framework 4.8 included in Windows" src="https://img.shields.io/badge/.NET%20Framework-4.8%20(in%20Windows)-512bd4">
@@ -21,7 +21,7 @@
 
 LogVice opens the logs you read every day as an endpoint admin: ConfigMgr client and site server logs, Intune Management Extension logs, CBS, DISM and Panther logs, Windows Update ETL traces and Windows event logs. It reads large files in the background, merges several logs by time, follows them as they are written, and explains error codes, in a Windows 11 style window with light and dark themes.
 
-It is one small exe with no installer requirement and nothing to configure. An MSI and a single PowerShell script are available too. Free and open source under the MIT license.
+It is one small exe with no installer requirement and nothing to configure. An MSI is available too. Free and open source under the MIT license.
 
 > LogVice was called Trace Lens up to version 1.3.2. The MSI upgrades an installed Trace Lens, and your settings come along.
 
@@ -61,7 +61,7 @@ Get the latest version from [Releases](../../releases). Pick the package that su
 
 | Package | Use it when |
 |---|---|
-| `LogVice.msi` | You deploy to many devices with Intune or ConfigMgr. Installs per machine, adds a Start menu shortcut and *Open with* for `.log`, `.lo_`, `.etl` and `.evtx` |
+| `LogVice.msi` | You deploy to many devices with Intune or ConfigMgr. Installs per machine, adds a Start menu shortcut and *Open with* for `.log`, `.lo_`, `.etl` and `.evtx`, with an icon of its own for those files |
 | `LogVice.exe` | You want a portable tool on a USB stick, a share or a jump server. No install needed |
 | `SHA256SUMS.txt` | Checksums of the exe and MSI, to check a download |
 
@@ -87,8 +87,8 @@ The MSI installs per machine, needs no restart and upgrades any earlier version 
 | Setting | Value |
 |---|---|
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {E356B345-5FFA-47BF-BCBE-EE9668F28AB1} /qn` |
-| Detection | MSI product code `{E356B345-5FFA-47BF-BCBE-EE9668F28AB1}` (version 1.5.3) |
+| Uninstall command | `msiexec /x {A9263E20-7EF1-4668-898D-60331A11E33D} /qn` |
+| Detection | MSI product code `{A9263E20-7EF1-4668-898D-60331A11E33D}` (version 1.5.4) |
 | Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (the same for every version) |
 | Install context | System |
 
@@ -225,7 +225,7 @@ To make a new release:
 
 1. Raise the version in `src/AssemblyInfo.cs` and `LogVice.wxs`, and give `Product Id` in `LogVice.wxs` a new GUID.
 2. Add the version to `CHANGELOG.md` and push.
-3. Create a release on GitHub with the tag `v<version>`, for example `v1.5.3`. The workflow stops if the tag and the version in `LogVice.wxs` differ.
+3. Create a release on GitHub with the tag `v<version>`, for example `v1.5.4`. The workflow stops if the tag and the version in `LogVice.wxs` differ.
 
 | Path | Contents |
 |---|---|
@@ -241,6 +241,7 @@ To make a new release:
 | `tests/` | Synthetic sample logs and the test runner used by the build |
 | `policy/` | Administrative template (ADMX) for Intune and Group Policy |
 | `winget/` | Script that writes the winget manifests for a release |
+| `art/` | Vector sources for `LogVice.ico` and `LogFile.ico`, and the script that renders them |
 
 ## Known limitations
 

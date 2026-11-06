@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="E356B345-5FFA-47BF-BCBE-EE9668F28AB1"
+  <Product Id="A9263E20-7EF1-4668-898D-60331A11E33D"
            Name="LogVice"
            Language="1033"
            Codepage="1252"
-           Version="1.5.3"
+           Version="1.5.4"
            Manufacturer="Daniel L. Baldissera"
            UpgradeCode="2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3">
 
@@ -33,7 +33,7 @@
         <Directory Id="INSTALLDIR" Name="LogVice">
 
           <Component Id="LogViceExe" Guid="A8137363-CC1A-43A5-ADB4-612F6292C370" Win64="yes">
-            <File Id="LogViceExe" Name="LogVice.exe" Source="LogVice.exe" KeyPath="yes" DefaultVersion="1.5.3.0">
+            <File Id="LogViceExe" Name="LogVice.exe" Source="LogVice.exe" KeyPath="yes" DefaultVersion="1.5.4.0">
               <Shortcut Id="StartMenuShortcut"
                         Directory="ProgramMenuFolder"
                         Name="LogVice"
@@ -42,11 +42,15 @@
             </File>
           </Component>
 
+          <Component Id="LogFileIcon" Guid="FEDC02EB-CD8F-4064-AC92-E6A05336C3C6" Win64="yes">
+            <File Id="LogFileIco" Name="LogFile.ico" Source="LogFile.ico" KeyPath="yes" />
+          </Component>
+
           <Component Id="Registration" Guid="30ED92DC-FC99-4EC0-918F-8827A9622193" Win64="yes">
             <RegistryValue Root="HKLM" Key="Software\LogVice" Name="InstallDir" Type="string" Value="[INSTALLDIR]" KeyPath="yes" />
             <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\LogVice.exe" Type="string" Value="[INSTALLDIR]LogVice.exe" />
             <RegistryValue Root="HKLM" Key="Software\Classes\LogVice.LogFile" Type="string" Value="Log file" />
-            <RegistryValue Root="HKLM" Key="Software\Classes\LogVice.LogFile\DefaultIcon" Type="string" Value="&quot;[INSTALLDIR]LogVice.exe&quot;,0" />
+            <RegistryValue Root="HKLM" Key="Software\Classes\LogVice.LogFile\DefaultIcon" Type="string" Value="[INSTALLDIR]LogFile.ico" />
             <RegistryValue Root="HKLM" Key="Software\Classes\LogVice.LogFile\shell\open\command" Type="string" Value="&quot;[INSTALLDIR]LogVice.exe&quot; &quot;%1&quot;" />
             <RegistryValue Root="HKLM" Key="Software\Classes\.log\OpenWithProgids" Name="LogVice.LogFile" Type="string" Value="" />
             <RegistryValue Root="HKLM" Key="Software\Classes\.lo_\OpenWithProgids" Name="LogVice.LogFile" Type="string" Value="" />
@@ -61,6 +65,7 @@
 
     <Feature Id="Main" Title="LogVice" Level="1">
       <ComponentRef Id="LogViceExe" />
+      <ComponentRef Id="LogFileIcon" />
       <ComponentRef Id="Registration" />
     </Feature>
   </Product>

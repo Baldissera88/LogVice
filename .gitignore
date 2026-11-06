@@ -9,3 +9,4 @@ LogVice.combined.cs
 *.pdb
 tests/*.exe
 out/
+art/png/

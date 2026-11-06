@@ -269,6 +269,14 @@ namespace LogVice
         [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
         static extern int SetWindowTheme(IntPtr hwnd, string appName, string idList);
 
+        [DllImport("shell32.dll")]
+        static extern void SHChangeNotify(int eventId, uint flags, IntPtr item1, IntPtr item2);
+
+        public static void RefreshFileIcons()
+        {
+            try { SHChangeNotify(0x08000000, 0x1000, IntPtr.Zero, IntPtr.Zero); } catch (Exception) { }
+        }
+
         public static void Cue(TextBox tb, string text)
         {
             try { SendMessage(tb.Handle, 0x1501, (IntPtr)1, text); } catch (Exception) { }
@@ -686,7 +694,7 @@ namespace LogVice
 
         static Bitmap RenderMark(int size)
         {
-            const int ss = 3;
+            const int ss = 4;
             int big = size * ss;
             using (Bitmap hi = new Bitmap(big, big, System.Drawing.Imaging.PixelFormat.Format32bppPArgb))
             {
@@ -695,66 +703,25 @@ namespace LogVice
                     g.SmoothingMode = SmoothingMode.AntiAlias;
                     g.PixelOffsetMode = PixelOffsetMode.HighQuality;
                     g.Clear(Color.Transparent);
-                    float n = big, inset = n * 0.03f;
-                    RectangleF tile = new RectangleF(inset, inset, n - inset * 2, n - inset * 2);
-                    using (GraphicsPath clip = Round(tile, n * 0.2f))
-                    using (LinearGradientBrush sky = new LinearGradientBrush(new RectangleF(0, -1, n, n + 2), Theme.Hex(0x140A33), Theme.Hex(0x3D0B5E), 90f))
+                    float k = big / 1024f;
+                    float min = size <= 16 ? 1.3f : size <= 20 ? 1.4f : size <= 24 ? 1.5f : size <= 32 ? 1.6f : size <= 40 ? 1.8f : size <= 48 ? 1.9f : size <= 64 ? 2.3f : 0f;
+                    float w = Math.Max(36f, min * 1024f / size);
+                    float lens = size > 24 ? 1f : 1.12f;
+                    using (GraphicsPath tile = Round(new RectangleF(20 * k, 20 * k, 984 * k, 984 * k), 150 * k))
+                    using (SolidBrush navy = new SolidBrush(Theme.Hex(0x011133)))
+                        g.FillPath(navy, tile);
+                    float[][] lines = size > 16
+                        ? new float[][] { new float[] { 155, 444, 358 }, new float[] { 155, 412, 483 }, new float[] { 155, 358, 608 } }
+                        : new float[][] { new float[] { 155, 444, 400 }, new float[] { 155, 380, 590 } };
+                    float cx = size <= 20 ? 652 : 642, cy = size <= 20 ? 470 : 462, r = 150 * lens;
+                    float hx = cx + (r + w * 0.9f) * 0.707f, hy = cy + (r + w * 0.9f) * 0.722f;
+                    using (Pen cyan = new Pen(Theme.Hex(0x00EEFE), w * k))
+                    using (Pen pink = new Pen(Theme.Hex(0xFF199A), w * k))
                     {
-                        g.SetClip(clip);
-                        g.FillRectangle(sky, 0, 0, n, n);
-                        float yh = (float)Math.Round(n * 0.60f), cx = n / 2f, cy = n * 0.47f, rr = n * 0.31f;
-                        if (size >= 48)
-                        {
-                            float[][] stars = { new float[] { 0.18f, 0.16f, 1.2f }, new float[] { 0.80f, 0.13f, 1f }, new float[] { 0.88f, 0.36f, 0.8f }, new float[] { 0.12f, 0.42f, 0.8f }, new float[] { 0.30f, 0.07f, 0.7f } };
-                            using (SolidBrush sb = new SolidBrush(Color.FromArgb(200, 255, 255, 255)))
-                                foreach (float[] st in stars)
-                                {
-                                    float sr = Math.Max(ss, n * 0.008f * st[2]);
-                                    g.FillEllipse(sb, st[0] * n - sr, st[1] * n - sr, sr * 2, sr * 2);
-                                }
-                        }
-                        using (GraphicsPath gp = new GraphicsPath())
-                        {
-                            float gr = rr * 1.4f;
-                            gp.AddEllipse(cx - gr, cy - gr, gr * 2, gr * 2);
-                            using (PathGradientBrush pb = new PathGradientBrush(gp))
-                            {
-                                pb.CenterColor = Color.FromArgb(105, 255, 60, 160);
-                                pb.SurroundColors = new Color[] { Color.FromArgb(0, 255, 60, 160) };
-                                g.FillPath(pb, gp);
-                            }
-                        }
-                        g.SetClip(new RectangleF(0, 0, n, yh), CombineMode.Intersect);
-                        using (LinearGradientBrush sun = new LinearGradientBrush(new RectangleF(0, cy - rr - 1, n, yh - (cy - rr) + 2), Theme.Hex(0xFFE45C), Theme.Hex(0xFF2D95), 90f))
-                            g.FillEllipse(sun, cx - rr, cy - rr, rr * 2, rr * 2);
-                        for (int i = 0; i < 3; i++)
-                        {
-                            float f = (i + 0.55f) / 3f;
-                            float th = Math.Max(ss, n * (0.012f + 0.008f * i));
-                            g.FillRectangle(sky, 0, cy + (yh - cy) * f - th / 2f, n, th);
-                        }
-                        g.SetClip(clip);
-                        using (SolidBrush ground = new SolidBrush(Theme.Hex(0x12062B))) g.FillRectangle(ground, 0, yh, n, n - yh);
-                        float ht = Math.Max(ss, n / 64f);
-                        using (SolidBrush hz = new SolidBrush(Theme.Hex(0xFF9BEA))) g.FillRectangle(hz, 0, yh, n, ht);
-                        float lw = Math.Max(ss, n / 90f);
-                        using (SolidBrush gb = new SolidBrush(Theme.Hex(0xFF4FD8)))
-                        using (Pen gpn = new Pen(Theme.Hex(0xFF4FD8), lw * 0.85f))
-                        {
-                            float bottom = n - inset;
-                            for (int j = 0; j < 4; j++)
-                            {
-                                float f = (float)Math.Pow((j + 1) / 4.6, 1.5);
-                                g.FillRectangle(gb, 0, yh + ht + (bottom - yh - ht) * f, n, lw);
-                            }
-                            float[] offs = { -1.6f, -0.9f, -0.42f, 0f, 0.42f, 0.9f, 1.6f };
-                            foreach (float o in offs) g.DrawLine(gpn, cx, yh + ht, cx + o * n * 0.55f, n);
-                        }
-                        g.ResetClip();
-                        float w = Math.Max(ss, n / 85f);
-                        using (GraphicsPath rim = Round(new RectangleF(tile.X + w / 2f, tile.Y + w / 2f, tile.Width - w, tile.Height - w), n * 0.2f))
-                        using (Pen rp = new Pen(Color.FromArgb(150, 255, 155, 234), w))
-                            g.DrawPath(rp, rim);
+                        cyan.StartCap = cyan.EndCap = LineCap.Round;
+                        foreach (float[] l in lines) g.DrawLine(cyan, (l[0] + w / 2f) * k, l[2] * k, l[1] * k, l[2] * k);
+                        g.DrawEllipse(pink, (cx - r) * k, (cy - r) * k, r * 2 * k, r * 2 * k);
+                        g.DrawLine(cyan, hx * k, hy * k, (hx + 118 * lens) * k, (hy + 126 * lens) * k);
                     }
                 }
                 Bitmap small = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
