@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 1.5.5" src="https://img.shields.io/badge/version-1.5.5-005fb8">
+  <img alt="Version 1.5.6" src="https://img.shields.io/badge/version-1.5.6-005fb8">
   <a href="../../actions/workflows/build.yml"><img alt="Build" src="../../actions/workflows/build.yml/badge.svg"></a>
   <img alt="Windows 10, 11 and Server 2016 or later" src="https://img.shields.io/badge/Windows-10%20%7C%2011%20%7C%20Server%202016%2B-0078d4">
   <img alt=".NET Framework 4.8 included in Windows" src="https://img.shields.io/badge/.NET%20Framework-4.8%20(in%20Windows)-512bd4">
@@ -87,8 +87,8 @@ The MSI installs per machine, needs no restart and upgrades any earlier version 
 | Setting | Value |
 |---|---|
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {BC1C2600-3FA3-4AA7-8AF7-576F60674AB7} /qn` |
-| Detection | MSI product code `{BC1C2600-3FA3-4AA7-8AF7-576F60674AB7}` (version 1.5.5) |
+| Uninstall command | `msiexec /x {3287F79C-BE69-4FF5-823D-564678B829C3} /qn` |
+| Detection | MSI product code `{3287F79C-BE69-4FF5-823D-564678B829C3}` (version 1.5.6) |
 | Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (the same for every version) |
 | Install context | System |
 
@@ -232,7 +232,7 @@ To make a new release:
 
 1. Raise the version in `src/AssemblyInfo.cs` and `LogVice.wxs`, and give `Product Id` in `LogVice.wxs` a new GUID.
 2. Add the version to `CHANGELOG.md` and push.
-3. Create a release on GitHub with the tag `v<version>`, for example `v1.5.5`. The workflow stops if the tag and the version in `LogVice.wxs` differ.
+3. Create a release on GitHub with the tag `v<version>`, for example `v1.5.6`. The workflow stops if the tag and the version in `LogVice.wxs` differ.
 
 | Path | Contents |
 |---|---|
@@ -241,7 +241,7 @@ To make a new release:
 | `src/Logs.EventLog.cs` | Windows event log reader for channels and `.evtx` files |
 | `src/Logs.Locations.cs` | Log discovery and auto-merge of spanned logs |
 | `src/Net.Remote.cs` | Connect as: Windows sign-in dialog and SMB session |
-| `src/Net.Update.cs` | Update check against GitHub Releases, and installing a checked update |
+| `src/Net.Update.cs`, `src/Ui.Updater.cs` | Update check against GitHub Releases, and installing a checked update |
 | `src/Logs.Follow.cs`, `src/Ui.Follow.cs` | Follow an item: client WMI, installed apps, log discovery and the search across logs and Windows events |
 | `src/Ui.*.cs` | The window, log grid, browser, settings and dialogs |
 | `LogVice.wxs` | WiX source for the MSI |

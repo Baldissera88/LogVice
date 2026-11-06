@@ -190,21 +190,27 @@ namespace LogVice
             return req;
         }
 
-        static void Download(string url, string path)
+        static void Download(string url, string path, Action<int> progress)
         {
             HttpWebRequest req = Request(url);
             using (WebResponse resp = req.GetResponse())
             using (Stream src = resp.GetResponseStream())
             using (FileStream dst = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
             {
+                long length = resp.ContentLength;
                 byte[] buf = new byte[81920];
-                int n;
+                int n, last = -1;
                 long total = 0;
                 while ((n = src.Read(buf, 0, buf.Length)) > 0)
                 {
                     dst.Write(buf, 0, n);
                     total += n;
                     if (total > 256L * 1024 * 1024) throw new IOException("The download is larger than expected.");
+                    if (progress != null && length > 0)
+                    {
+                        int pct = (int)Math.Min(100, total * 100 / length);
+                        if (pct != last) { last = pct; progress(pct); }
+                    }
                 }
             }
         }
@@ -239,7 +245,14 @@ namespace LogVice
             return Path.Combine(Path.GetTempPath(), "LogVice-update-" + version);
         }
 
+        public static bool HandedOff;
+
         public static string Prepare(UpdateInfo r)
+        {
+            return Prepare(r, null);
+        }
+
+        public static string Prepare(UpdateInfo r, Action<int> progress)
         {
             bool msi = IsInstalled;
             string url = msi ? r.MsiUrl : r.ExeUrl;
@@ -249,10 +262,10 @@ namespace LogVice
             Directory.CreateDirectory(dir);
             string sumsPath = Path.Combine(dir, "SHA256SUMS.txt");
             string file = Path.Combine(dir, name);
-            Download(r.SumsUrl, sumsPath);
+            Download(r.SumsUrl, sumsPath, null);
             string want = ExpectedHash(File.ReadAllText(sumsPath), name);
             if (want == null) throw new InvalidOperationException("SHA256SUMS.txt in the release does not list " + name + ".");
-            Download(url, file);
+            Download(url, file, progress);
             string got = FileHash(file);
             if (got != want)
             {
@@ -298,23 +311,126 @@ namespace LogVice
         public static int Apply(string[] args)
         {
             if (args.Length < 5) return 2;
-            bool msi = args[1] == "msi";
-            string file = args[2], target = args[3];
-            int pid;
-            int.TryParse(args[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out pid);
-            string[] reopen = new string[Math.Max(0, args.Length - 5)];
-            Array.Copy(args, 5, reopen, 0, reopen.Length);
+            UpdateJob job = new UpdateJob(args);
+            try { NativeMethods.SetProcessDPIAware(); } catch (Exception) { }
             try
             {
-                using (System.Diagnostics.Process p = System.Diagnostics.Process.GetProcessById(pid)) p.WaitForExit(60000);
+                using (System.Drawing.Graphics g = System.Drawing.Graphics.FromHwnd(IntPtr.Zero)) Dpi.Scale = Math.Max(1f, g.DpiX / 96f);
             }
             catch (Exception) { }
-            string problem = null;
-            if (msi)
+            Fonts.Init();
+            using (UpdaterForm f = new UpdaterForm(job.Version))
             {
+                f.Shown += delegate { ThreadPool.QueueUserWorkItem(delegate { job.Run(f); }); };
+                System.Windows.Forms.Application.Run(f);
+            }
+            return job.Result;
+        }
+
+        sealed class UpdateJob
+        {
+            readonly bool msi;
+            readonly string file, target;
+            readonly int pid;
+            readonly string[] reopen;
+            public readonly string Version;
+            public int Result = 1;
+
+            public UpdateJob(string[] args)
+            {
+                msi = args[1] == "msi";
+                file = args[2];
+                target = args[3];
+                int.TryParse(args[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out pid);
+                reopen = new string[Math.Max(0, args.Length - 5)];
+                Array.Copy(args, 5, reopen, 0, reopen.Length);
+                string folder = Path.GetFileName(Path.GetDirectoryName(file) ?? "") ?? "";
+                Version = folder.StartsWith("LogVice-update-", StringComparison.OrdinalIgnoreCase) ? folder.Substring("LogVice-update-".Length) : null;
+            }
+
+            public void Run(UpdaterForm ui)
+            {
+                string problem = null;
                 try
                 {
-                    string log = Path.Combine(Path.GetDirectoryName(file), "install.log");
+                    ui.Status("Waiting for LogVice to close\u2026");
+                    System.Diagnostics.Process parent = null;
+                    try { parent = System.Diagnostics.Process.GetProcessById(pid); } catch (Exception) { }
+                    if (parent != null)
+                        using (parent)
+                        {
+                            bool gone = false;
+                            try { gone = parent.WaitForExit(15000); } catch (Exception) { gone = true; }
+                            if (!gone)
+                            {
+                                ui.Status("LogVice is still open. Closing it\u2026");
+                                CloseOrKill(parent);
+                            }
+                        }
+                    CloseOthers();
+                    if (msi)
+                    {
+                        ui.Status("Installing LogVice" + (Version != null ? " " + Version : "") + ". Windows asks for administrator rights.");
+                        problem = InstallMsi();
+                    }
+                    else
+                    {
+                        ui.Status("Replacing LogVice.exe\u2026");
+                        problem = ReplaceExe();
+                    }
+                }
+                catch (Exception ex) { problem = "The update stopped: " + ex.Message; }
+                if (problem != null) ui.Problem(problem);
+                ui.Status("Starting LogVice\u2026");
+                try
+                {
+                    StringBuilder a = new StringBuilder();
+                    foreach (string p in reopen) a.Append(" \"").Append(p).Append('"');
+                    System.Diagnostics.ProcessStartInfo start = new System.Diagnostics.ProcessStartInfo(target, a.ToString().Trim());
+                    start.UseShellExecute = false;
+                    start.WorkingDirectory = Path.GetDirectoryName(target);
+                    System.Diagnostics.Process.Start(start);
+                }
+                catch (Exception ex) { ui.Problem("LogVice could not start again: " + ex.Message); }
+                Result = problem == null ? 0 : 1;
+                ui.Finish();
+            }
+
+            void CloseOthers()
+            {
+                string name = Path.GetFileNameWithoutExtension(target);
+                string full = Path.GetFullPath(target);
+                System.Diagnostics.Process[] all;
+                try { all = System.Diagnostics.Process.GetProcessesByName(name); }
+                catch (Exception) { return; }
+                foreach (System.Diagnostics.Process p in all)
+                    using (p)
+                    {
+                        string path = null;
+                        try { path = p.MainModule.FileName; } catch (Exception) { }
+                        if (path == null || !string.Equals(Path.GetFullPath(path), full, StringComparison.OrdinalIgnoreCase)) continue;
+                        CloseOrKill(p);
+                    }
+            }
+
+            static void CloseOrKill(System.Diagnostics.Process p)
+            {
+                try { if (p.HasExited) return; } catch (Exception) { return; }
+                try { p.CloseMainWindow(); } catch (Exception) { }
+                try { if (p.WaitForExit(8000)) return; } catch (Exception) { return; }
+                try
+                {
+                    p.Kill();
+                    p.WaitForExit(5000);
+                }
+                catch (Exception) { }
+            }
+
+            string InstallMsi()
+            {
+                string log = Path.Combine(Path.GetDirectoryName(file), "install.log");
+                try
+                {
                     System.Diagnostics.ProcessStartInfo psi = new System.Diagnostics.ProcessStartInfo(
                         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "msiexec.exe"),
                         "/i \"" + file + "\" /passive /norestart /l*v \"" + log + "\"");
@@ -324,17 +440,19 @@ namespace LogVice
                     {
                         p.WaitForExit();
                         int code = p.ExitCode;
+                        if (code == 1618) return "Another installation is running. Try again when it has finished.";
                         if (code != 0 && code != 3010 && code != 1641)
-                            problem = "The installation ended with code " + code + ". The installer log is " + log + ".";
+                            return "The installation ended with code " + code + ". The installer log is " + log + ".";
                     }
+                    return null;
                 }
                 catch (System.ComponentModel.Win32Exception ex)
                 {
-                    problem = ex.NativeErrorCode == 1223 ? "The update was not installed, because administrator rights were not given." : "The installer could not start: " + ex.Message;
+                    return ex.NativeErrorCode == 1223 ? "The update was not installed, because administrator rights were not given." : "The installer could not start: " + ex.Message;
                 }
-                catch (Exception ex) { problem = "The installer could not start: " + ex.Message; }
             }
-            else
+
+            string ReplaceExe()
             {
                 Exception last = null;
                 for (int i = 0; i < 20; i++)
@@ -342,8 +460,7 @@ namespace LogVice
                     try
                     {
                         File.Copy(file, target, true);
-                        last = null;
-                        break;
+                        return null;
                     }
                     catch (Exception ex)
                     {
@@ -351,24 +468,8 @@ namespace LogVice
                         Thread.Sleep(500);
                     }
                 }
-                if (last != null) problem = "LogVice could not replace " + target + ": " + last.Message + "\r\n\r\nThe new version is in " + file + ". Copy it there yourself.";
+                return "LogVice could not replace " + target + ": " + last.Message + "\r\n\r\nThe new version is in " + file + ". Copy it there yourself.";
             }
-            if (problem != null)
-                System.Windows.Forms.MessageBox.Show(problem, "LogVice update", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Warning);
-            try
-            {
-                StringBuilder a = new StringBuilder();
-                foreach (string p in reopen) a.Append(" \"").Append(p).Append('"');
-                System.Diagnostics.ProcessStartInfo start = new System.Diagnostics.ProcessStartInfo(target, a.ToString().Trim());
-                start.UseShellExecute = false;
-                start.WorkingDirectory = Path.GetDirectoryName(target);
-                System.Diagnostics.Process.Start(start);
-            }
-            catch (Exception ex)
-            {
-                System.Windows.Forms.MessageBox.Show("LogVice could not start again: " + ex.Message, "LogVice update", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Warning);
-            }
-            return problem == null ? 0 : 1;
         }
 
         public static void CleanUp()

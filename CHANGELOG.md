@@ -6,7 +6,9 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 
 | Version | Highlights | Upgrade |
 |---|---|---|
-| **1.5.5** (latest) | Follow an item: Intune Store apps, remediations, scripts and installed apps, several items at once, Windows events in the timeline | Run the MSI, or select Update in LogVice. It replaces Trace Lens and any earlier version |
+| **1.5.6** (latest) | Installing an update no longer hangs, with a window that shows each step | Run the MSI, or select Update in LogVice. It replaces Trace Lens and any earlier version |
+| 1.5.6 | Installing an update no longer hangs: LogVice closes at once and an updater window shows each step |
+| 1.5.5 | Follow an item: Intune Store apps, remediations, scripts and installed apps, several items at once, Windows events in the timeline | |
 | 1.5.5 | Follow an item: Store apps, remediations, platform scripts and installed apps, several items at once, Windows events in the timeline |
 | 1.5.4 | New app icon, and an icon of its own for log files | |
 | 1.5.3 | What's new in the app, release notes in the Update dialog, winget manifests with every release | |
@@ -21,6 +23,26 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 | 1.1.0 | Windows 11 style with light and dark themes | |
 
 ![LogVice log view](docs/images/log-light.png)
+
+## LogVice 1.5.6
+
+LogVice 1.5.6 makes installing an update from LogVice smooth: no more frozen window.
+
+| | |
+|---|---|
+| Product code | `{3287F79C-BE69-4FF5-823D-564678B829C3}` |
+| Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (unchanged) |
+| Files | `LogVice.msi`, `LogVice.exe`, `SHA256SUMS.txt` |
+
+### Fixed in 1.5.6
+
+- **Installing an update no longer hangs**: after **Install**, LogVice closes at once and a small **Updating LogVice** window shows each step: closing LogVice, installing, and starting it again.
+    - If LogVice has not closed within 15 seconds, the updater closes it.
+    - Other LogVice windows running from the same folder are closed too, so the installer never waits for a program that is still open.
+- The status bar shows the download progress.
+- When another installation is running, the update says so instead of ending with an error code.
+
+The update is carried out by the version you are running, so this applies to updates you start from 1.5.6. If 1.5.5 stops responding after **Install**, close it and the update continues.
 
 ## LogVice 1.5.5
 
@@ -302,13 +324,14 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 
 | Package | How to upgrade from an earlier version |
 | --- | --- |
-| LogVice.msi | Run the 1.5.5 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
+| LogVice.msi | Run the 1.5.6 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
 | LogVice.exe (portable) | Delete TraceLens.exe and use LogVice.exe. Your settings are copied on first start |
 
 | MSI setting | Value |
 | --- | --- |
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {BC1C2600-3FA3-4AA7-8AF7-576F60674AB7} /qn` |
+| Uninstall command | `msiexec /x {3287F79C-BE69-4FF5-823D-564678B829C3} /qn` |
+| Product code (1.5.6) | `{3287F79C-BE69-4FF5-823D-564678B829C3}` |
 | Product code (1.5.5) | `{BC1C2600-3FA3-4AA7-8AF7-576F60674AB7}` |
 | Product code (1.5.4) | `{A9263E20-7EF1-4668-898D-60331A11E33D}` |
 | Product code (1.5.3) | `{E356B345-5FFA-47BF-BCBE-EE9668F28AB1}` |
@@ -328,7 +351,7 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 | Install context | System, per machine |
 | Restart | Not needed |
 
-In Intune or ConfigMgr, add 1.5.5 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
+In Intune or ConfigMgr, add 1.5.6 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
 
 ## Known limitations
 

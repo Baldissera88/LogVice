@@ -202,8 +202,20 @@ namespace LogVice
                 tailTimer.Stop();
                 if (eggTimer != null) eggTimer.Stop();
                 if (loadTok != null) loadTok.State = 2;
-                CloseSources(st);
-                try { RemoteLogin.DisconnectAll(); } catch (Exception) { }
+                Store closing = st;
+                System.Threading.Thread cleanup = new System.Threading.Thread(delegate ()
+                {
+                    CloseSources(closing);
+                    try { RemoteLogin.DisconnectAll(); } catch (Exception) { }
+                });
+                cleanup.IsBackground = true;
+                cleanup.Start();
+                if (Updates.HandedOff)
+                {
+                    cleanup.Join(3000);
+                    Environment.Exit(0);
+                }
+                cleanup.Join();
                 if (eggPath != null)
                 {
                     try { File.Delete(eggPath); Directory.Delete(Path.GetDirectoryName(eggPath)); } catch (Exception) { }
@@ -1002,7 +1014,7 @@ namespace LogVice
             Task.Factory.StartNew(delegate
             {
                 string file = null, err = null;
-                try { file = Updates.Prepare(r); }
+                try { file = Updates.Prepare(r, delegate (int pct) { SafeInvoke(delegate { Note("Downloading LogVice " + r.Latest + "\u2026 " + pct + " %"); }); }); }
                 catch (Exception ex) { err = ex.Message; }
                 SafeInvoke(delegate
                 {
@@ -1012,7 +1024,10 @@ namespace LogVice
                     {
                         try
                         {
+                            Note("Installing LogVice " + r.Latest + "\u2026");
                             Updates.Launch(file, reopen);
+                            Updates.HandedOff = true;
+                            Hide();
                             Close();
                             return;
                         }
