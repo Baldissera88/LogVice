@@ -6,7 +6,8 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 
 | Version | Highlights | Upgrade |
 |---|---|---|
-| **1.5.1** (latest) | Faster loading, filtering and Follow an item, automatic tests | Run the MSI. It replaces Trace Lens and any earlier version |
+| **1.5.2** (latest) | Install updates from LogVice with one click, checked against the release checksums | Run the MSI. It replaces Trace Lens and any earlier version |
+| 1.5.1 | Faster loading, filtering and Follow an item, automatic tests | |
 | 1.5.0 | Follow an item through every client log, update check with ADMX policy, releases built by GitHub Actions | |
 | 1.4.0 | New name LogVice, Windows event logs (live channels, remote computers and .evtx files) | |
 | 1.3.2 | Theme button in the toolbar, asks for administrator rights when a log needs them, more reliable Connect as | |
@@ -16,6 +17,27 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 | 1.1.0 | Windows 11 style with light and dark themes | |
 
 ![LogVice log view](docs/images/log-light.png)
+
+## LogVice 1.5.2
+
+LogVice 1.5.2 installs a new version for you. When the update check finds one, select **Update** and LogVice downloads it, checks it and installs it.
+
+| | |
+|---|---|
+| Product code | `{4050591A-C0F1-4E84-894A-B8D08AA798B6}` |
+| Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (unchanged) |
+| Files | `LogVice.msi`, `LogVice.exe`, `SHA256SUMS.txt` |
+
+### New in 1.5.2
+
+- **Install updates from LogVice**: the **Update** button in the toolbar and **Install** in About download the new version from this repository's GitHub release and check it against the release's `SHA256SUMS.txt`. A file that does not match is deleted and never run.
+  - Installed with the MSI: LogVice closes, runs the new MSI with a progress bar and asks for administrator rights (UAC). The upgrade replaces the old version in place.
+  - Portable exe: LogVice closes and replaces its own `LogVice.exe` with the new one. No administrator rights are needed when you can write to the folder.
+  - Afterwards LogVice opens again with the logs you had open.
+- **No surprises**: nothing is downloaded until you select **Install**, and you can choose **No** to read the release notes instead. A release without `SHA256SUMS.txt` is only offered as a download.
+- Downloads use the Windows proxy settings. The download and the installer log are kept in `%TEMP%\LogVice-update-<version>` and removed the next time LogVice starts.
+
+Update to 1.5.2 by hand once. From 1.5.2 on, later versions install with the **Update** button.
 
 ## LogVice 1.5.1
 
@@ -221,13 +243,14 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 
 | Package | How to upgrade from an earlier version |
 | --- | --- |
-| LogVice.msi | Run the 1.5.1 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
+| LogVice.msi | Run the 1.5.2 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
 | LogVice.exe (portable) | Delete TraceLens.exe and use LogVice.exe. Your settings are copied on first start |
 
 | MSI setting | Value |
 | --- | --- |
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {6F8A9909-3D0A-40F6-9C43-8E3FA7DD7BFD} /qn` |
+| Uninstall command | `msiexec /x {4050591A-C0F1-4E84-894A-B8D08AA798B6} /qn` |
+| Product code (1.5.2) | `{4050591A-C0F1-4E84-894A-B8D08AA798B6}` |
 | Product code (1.5.1) | `{6F8A9909-3D0A-40F6-9C43-8E3FA7DD7BFD}` |
 | Product code (1.5.0) | `{902113B3-B6C9-45F4-8F0D-EB8CC84629A5}` |
 | Product code (1.4.0) | `{2BDC8F66-2461-46EE-AA50-3264BCC5F34A}` |
@@ -243,11 +266,11 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 | Install context | System, per machine |
 | Restart | Not needed |
 
-In Intune or ConfigMgr, add 1.5.1 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
+In Intune or ConfigMgr, add 1.5.2 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
 
 ## Known limitations
 
-- The exe, MSI and script are unsigned. SmartScreen warns on downloaded copies, and AppLocker or WDAC need them signed with your own certificate.
+- The exe and MSI are unsigned. SmartScreen warns on downloaded copies, and AppLocker or WDAC need them signed with your own certificate.
 - Browsing another computer needs an administrator account on it and file sharing (SMB) to it. LogVice does not read that computer's registry, so ConfigMgr installed outside the default folder is found only through its `SMS_<site code>` share.
 - Merging sorts by the local time written in each log, so logs from computers in different time zones can interleave out of order.
 - Logs are held in memory, about two to three times their size on disk.
@@ -263,6 +286,7 @@ In Intune or ConfigMgr, add 1.5.1 as a new app that supersedes the earlier versi
 
 | Version | Summary |
 | --- | --- |
+| 1.5.2 | Install updates from LogVice: download from GitHub, check against SHA256SUMS.txt, install and reopen |
 | 1.5.1 | Faster loading, parallel reading of several logs, parallel filters and Find, Follow an item about 5 times faster, automatic tests |
 | 1.5.0 | Follow an item through every client log; update check with Update button and ADMX policy; releases built by GitHub Actions |
 | 1.4.0 | New name LogVice (was Trace Lens); Windows event logs: live channels, remote computers and .evtx files; settings carried over |

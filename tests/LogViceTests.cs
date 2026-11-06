@@ -55,6 +55,7 @@ namespace LogVice.Tests
             AbsorbMatchesSequential();
             FollowChain();
             FollowIntune();
+            UpdateRelease();
 
             Console.WriteLine(failed == 0 ? "ALL TESTS PASSED" : failed + " TEST(S) FAILED");
             return failed == 0 ? 0 : 1;
@@ -208,6 +209,41 @@ namespace LogVice.Tests
             FollowResult r = Follow.Start(app, true);
             Follow.ScanFiles(files, r, null, null);
             Check(r.Total == 2 && r.Files.Count == 1, "follow finds the Intune app's 2 lines");
+        }
+
+        static void UpdateRelease()
+        {
+            const string dl = "https://github.com/Baldissera88/LogVice/releases/download/v99.0.0/";
+            string json = "{\"tag_name\":\"v99.0.0\",\"html_url\":\"https://github.com/Baldissera88/LogVice/releases/tag/v99.0.0\",\"assets\":["
+                + "{\"name\":\"LogVice.msi\",\"browser_download_url\":\"" + dl + "LogVice.msi\"},"
+                + "{\"name\":\"LogVice.exe\",\"browser_download_url\":\"https://example.com/Baldissera88/LogVice/releases/download/v99.0.0/LogVice.exe\"},"
+                + "{\"name\":\"SHA256SUMS.txt\",\"browser_download_url\":\"" + dl + "SHA256SUMS.txt\"}]}";
+            UpdateInfo r = new UpdateInfo();
+            Updates.Parse(json, r);
+            Check(r.Newer && r.Latest == "99.0.0" && r.Url.EndsWith("/tag/v99.0.0", StringComparison.Ordinal), "update check reads the latest version and its release page");
+            Check(r.MsiUrl == dl + "LogVice.msi" && r.SumsUrl == dl + "SHA256SUMS.txt", "update check takes the MSI and checksums from the repository's own releases");
+            Check(r.ExeUrl == null, "update check ignores downloads from any other address");
+
+            UpdateInfo old = new UpdateInfo();
+            Updates.Parse("{\"tag_name\":\"v99.0.0\",\"assets\":[{\"browser_download_url\":\"" + dl + "LogVice.msi\"},{\"browser_download_url\":\"" + dl + "LogVice.exe\"}]}", old);
+            Check(old.Newer && !old.CanInstall, "a release without SHA256SUMS.txt is offered as a download, not installed");
+
+            UpdateInfo same = new UpdateInfo();
+            Updates.Parse("{\"tag_name\":\"v" + LogVice.Program.Version + "\"}", same);
+            Check(!same.Newer && !same.CanInstall, "the running version is not offered as an update");
+
+            string a = new string('a', 64), b = new string('B', 64);
+            string sums = a + "  LogVice.exe\n" + b + " *LogVice.msi\r\nnot a checksum line\n";
+            Check(Updates.ExpectedHash(sums, "LogVice.exe") == a && Updates.ExpectedHash(sums, "LogVice.msi") == b.ToLowerInvariant() && Updates.ExpectedHash(sums, "other.txt") == null,
+                "SHA256SUMS.txt lines are read in sha256sum format");
+
+            string tmp = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(tmp, "abc");
+                Check(Updates.FileHash(tmp) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", "file checksum is SHA-256 in lower case hex");
+            }
+            finally { File.Delete(tmp); }
         }
     }
 }

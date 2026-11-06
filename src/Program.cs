@@ -8,7 +8,7 @@ namespace LogVice
 
     public static class Program
     {
-        public const string BuildDate = "5 November 2026";
+        public const string BuildDate = "6 November 2026";
         public const string Developer = "Daniel L. Baldissera";
         public static string ScriptPath;
 
@@ -92,6 +92,13 @@ namespace LogVice
                 Exception ex = e.ExceptionObject as Exception;
                 MessageBox.Show(ex != null ? ex.ToString() : "Unknown error", "LogVice", MessageBoxButtons.OK, MessageBoxIcon.Error);
             };
+            if (args != null && args.Length > 0 && args[0] == "--apply-update")
+            {
+                try { Application.EnableVisualStyles(); } catch (InvalidOperationException) { }
+                Environment.ExitCode = Updates.Apply(args);
+                return;
+            }
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate { Updates.CleanUp(); });
             Run(ExpandArgs(args));
         }
 

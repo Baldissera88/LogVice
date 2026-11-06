@@ -25,6 +25,7 @@ namespace LogVice
         SettingRow rowUpdate;
         FluentButton bUpdate;
         UpdateInfo update;
+        public event Action<UpdateInfo> InstallRequested;
         List<HighlightRule> rules = new List<HighlightRule>();
         readonly SettingRow rowRecent, rowFound;
         readonly ToolTip tips;
@@ -505,7 +506,8 @@ namespace LogVice
         {
             if (update != null && update.Newer)
             {
-                try { Process.Start(update.Url); } catch (Exception) { }
+                if (update.CanInstall && InstallRequested != null) InstallRequested(update);
+                else try { Process.Start(update.Url); } catch (Exception) { }
                 return;
             }
             bUpdate.Enabled = false;
@@ -522,7 +524,7 @@ namespace LogVice
             update = r;
             if (r == null || rowUpdate == null) return;
             if (r.Error != null) SetUpdateText(r.Error + " Releases are published on " + Updates.ReleasesUrl, "Check now");
-            else if (r.Newer) SetUpdateText("LogVice " + r.Latest + " is available. You have " + Program.Version + ".", "Download " + r.Latest);
+            else if (r.Newer) SetUpdateText("LogVice " + r.Latest + " is available. You have " + Program.Version + ". " + (r.CanInstall ? "Install downloads it from GitHub, checks it against the release's checksum and installs it. LogVice then opens again with the same logs." : "Download opens the release page."), (r.CanInstall ? "Install " : "Download ") + r.Latest);
             else SetUpdateText("You have the latest version, " + Program.Version + ".", "Check now");
         }
 

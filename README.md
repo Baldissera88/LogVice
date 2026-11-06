@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 1.5.1" src="https://img.shields.io/badge/version-1.5.1-005fb8">
+  <img alt="Version 1.5.2" src="https://img.shields.io/badge/version-1.5.2-005fb8">
   <a href="../../actions/workflows/build.yml"><img alt="Build" src="../../actions/workflows/build.yml/badge.svg"></a>
   <img alt="Windows 10, 11 and Server 2016 or later" src="https://img.shields.io/badge/Windows-10%20%7C%2011%20%7C%20Server%202016%2B-0078d4">
   <img alt=".NET Framework 4.8 included in Windows" src="https://img.shields.io/badge/.NET%20Framework-4.8%20(in%20Windows)-512bd4">
@@ -42,7 +42,7 @@ It is one small exe with no installer requirement and nothing to configure. An M
 - **Line numbers.** See where each entry is in the file, or the record ID of an event, and press Ctrl+G to go to it.
 - **Administrator rights only when needed.** LogVice runs as a normal user and offers to restart as administrator when a log needs it, such as the Security event log.
 - **Read-only and private.** Files are opened read-only with full sharing, so clients keep writing and rolling them. Nothing about you or your logs leaves the computer.
-- **Update check.** Once a day LogVice asks GitHub for the latest version and shows an **Update** button when there is a newer one. Turn it off in Settings, or for everyone with a policy.
+- **Updates.** Once a day LogVice asks GitHub for the latest version. When there is a newer one, select **Update** and LogVice downloads it, checks it against the release's checksums, installs it and opens again with your logs. Turn it off in Settings, or for everyone with a policy.
 
 <table>
   <tr>
@@ -87,14 +87,14 @@ The MSI installs per machine, needs no restart and upgrades any earlier version 
 | Setting | Value |
 |---|---|
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {6F8A9909-3D0A-40F6-9C43-8E3FA7DD7BFD} /qn` |
-| Detection | MSI product code `{6F8A9909-3D0A-40F6-9C43-8E3FA7DD7BFD}` (version 1.5.1) |
+| Uninstall command | `msiexec /x {4050591A-C0F1-4E84-894A-B8D08AA798B6} /qn` |
+| Detection | MSI product code `{4050591A-C0F1-4E84-894A-B8D08AA798B6}` (version 1.5.2) |
 | Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (the same for every version) |
 | Install context | System |
 
 Each new version has a new product code, listed in the [changelog](CHANGELOG.md) and in the release notes. Add it as a new app that supersedes the earlier one.
 
-To turn off the update check on managed devices, use the administrative template in [`policy/`](policy): import `LogVice.admx` and `en-US/LogVice.adml` in Intune under **Devices > Configuration > Import ADMX**, or copy them to the Group Policy central store, then enable **LogVice > Turn off the update check**. The policy sets this value:
+On managed devices, users without administrator rights cannot install the MSI from the **Update** button, so deploy new versions with Intune or ConfigMgr and turn off the update check. Use the administrative template in [`policy/`](policy): import `LogVice.admx` and `en-US/LogVice.adml` in Intune under **Devices > Configuration > Import ADMX**, or copy them to the Group Policy central store, then enable **LogVice > Turn off the update check**. This also hides the **Update** button. The policy sets this value:
 
 | Key | Value | Type | Data |
 |---|---|---|---|
@@ -192,9 +192,9 @@ Add your own folders, for example a share with collected logs, under Settings.
 
 ## Settings
 
-Settings are stored per user in `HKEY_CURRENT_USER\Software\LogVice`. Delete that key to reset everything. On first start, LogVice copies the settings from `HKEY_CURRENT_USER\Software\Trace Lens` if they are there. LogVice writes nothing else, except a temporary copy of an ETL file while it is read.
+Settings are stored per user in `HKEY_CURRENT_USER\Software\LogVice`. Delete that key to reset everything. On first start, LogVice copies the settings from `HKEY_CURRENT_USER\Software\Trace Lens` if they are there. LogVice writes nothing else, except a temporary copy of an ETL file while it is read and the files of an update you choose to install.
 
-The only internet call LogVice makes is the update check: at most once a day it asks `api.github.com` for the latest release of this repository. It sends nothing else, and it uses the Windows proxy settings. Turn it off under Settings > Updates or with the policy above.
+The only internet calls LogVice makes are for updates. At most once a day it asks `api.github.com` for the latest release of this repository, and it sends nothing else. When you select **Install**, it downloads `SHA256SUMS.txt` and the MSI or exe from that release on `github.com`, and runs the file only if its SHA-256 checksum matches. Both use the Windows proxy settings. Turn it off under Settings > Updates or with the policy above.
 
 ## Build from source
 
@@ -223,7 +223,7 @@ To make a new release:
 
 1. Raise the version in `src/AssemblyInfo.cs` and `LogVice.wxs`, and give `Product Id` in `LogVice.wxs` a new GUID.
 2. Add the version to `CHANGELOG.md` and push.
-3. Create a release on GitHub with the tag `v<version>`, for example `v1.5.1`. The workflow stops if the tag and the version in `LogVice.wxs` differ.
+3. Create a release on GitHub with the tag `v<version>`, for example `v1.5.2`. The workflow stops if the tag and the version in `LogVice.wxs` differ.
 
 | Path | Contents |
 |---|---|
@@ -232,7 +232,7 @@ To make a new release:
 | `src/Logs.EventLog.cs` | Windows event log reader for channels and `.evtx` files |
 | `src/Logs.Locations.cs` | Log discovery and auto-merge of spanned logs |
 | `src/Net.Remote.cs` | Connect as: Windows sign-in dialog and SMB session |
-| `src/Net.Update.cs` | Daily update check against GitHub Releases |
+| `src/Net.Update.cs` | Update check against GitHub Releases, and installing a checked update |
 | `src/Logs.Follow.cs`, `src/Ui.Follow.cs` | Follow an item: client WMI, log discovery and the search across logs |
 | `src/Ui.*.cs` | The window, log grid, browser, settings and dialogs |
 | `LogVice.wxs` | WiX source for the MSI |

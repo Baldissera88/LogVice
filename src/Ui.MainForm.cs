@@ -274,7 +274,7 @@ namespace LogVice
             bSettings = Btn(ButtonKind.Subtle, Glyph.Gear, "", "Settings and about (Ctrl+,)", delegate { if (viewKind == ViewKind.Settings) ShowView(ViewKind.Logs); else OpenSettings(0); });
 
             cmdBar.AddLeft(bHome, bOpen, bRecent, bBrowse, bMerge, bReload, bStop, new BarSep(), bLive, bLookup);
-            bUpdate = Btn(ButtonKind.Accent, Glyph.Live, "Update", "A newer version of LogVice is available", delegate { OpenSettings(2); });
+            bUpdate = Btn(ButtonKind.Accent, Glyph.Live, "Update", "A newer version of LogVice is available", delegate { if (pendingUpdate != null && pendingUpdate.CanInstall) InstallUpdate(pendingUpdate); else OpenSettings(2); });
             bUpdate.Visible = false;
             cmdBar.AddRight(tFind, bFindPrev, bFindNext, new BarSep(), bErrPrev, bErrNext, new BarSep(), bUpdate, bTheme, bSettings);
         }
@@ -472,6 +472,7 @@ namespace LogVice
             };
 
             settingsView = new SettingsView(tips);
+            settingsView.InstallRequested += delegate (UpdateInfo u) { InstallUpdate(u); };
             settingsView.Dock = DockStyle.Fill;
             settingsView.Visible = false;
             settingsView.BackRequested += delegate { ShowView(ViewKind.Logs); };
@@ -907,15 +908,59 @@ namespace LogVice
             Note("Following " + item.Name + ": " + r.Total.ToString("N0") + (r.Total == 1 ? " line in " : " lines in ") + r.Files.Count + (r.Files.Count == 1 ? " log" : " logs") + ". Clear the filter to see everything around it.");
         }
 
+        UpdateInfo pendingUpdate;
+        bool installing;
+
         void UpdateFound(UpdateInfo r)
         {
             settingsView.ShowUpdate(r);
             if (r == null || !r.Newer) return;
+            pendingUpdate = r;
             bUpdate.Text = "Update " + r.Latest;
-            tips.SetToolTip(bUpdate, "LogVice " + r.Latest + " is available. Open About to download it.");
+            tips.SetToolTip(bUpdate, r.CanInstall ? "Install LogVice " + r.Latest + " now" : "LogVice " + r.Latest + " is available. Open About to download it.");
             bUpdate.Visible = true;
             cmdBar.PerformLayout();
             Note("LogVice " + r.Latest + " is available.");
+        }
+
+        void InstallUpdate(UpdateInfo r)
+        {
+            if (r == null || installing) return;
+            bool msi = Updates.IsInstalled;
+            string text = "LogVice " + r.Latest + " is available. You have " + Program.Version + ".\r\n\r\n" +
+                "Yes: download it from GitHub, check it against the release's checksum and install it now. LogVice closes and opens again with the same logs." +
+                (msi ? " Windows asks for administrator rights to install it." : "") + "\r\n\r\n" +
+                "No: open the release notes.\r\n\r\nCancel: not now.";
+            DialogResult a = MessageBox.Show(this, text, "Update LogVice", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+            if (a == DialogResult.No) { try { Process.Start(r.Url); } catch (Exception) { } return; }
+            if (a != DialogResult.Yes) return;
+            installing = true;
+            bUpdate.Enabled = false;
+            Note("Downloading LogVice " + r.Latest + "\u2026");
+            string[] reopen = OpenPaths();
+            Task.Factory.StartNew(delegate
+            {
+                string file = null, err = null;
+                try { file = Updates.Prepare(r); }
+                catch (Exception ex) { err = ex.Message; }
+                SafeInvoke(delegate
+                {
+                    installing = false;
+                    bUpdate.Enabled = true;
+                    if (err == null)
+                    {
+                        try
+                        {
+                            Updates.Launch(file, reopen);
+                            Close();
+                            return;
+                        }
+                        catch (Exception ex) { err = ex.Message; }
+                    }
+                    if (MessageBox.Show(this, "LogVice " + r.Latest + " could not be installed automatically.\r\n\r\n" + err + "\r\n\r\nOpen the release page to download it?", "Update LogVice", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                        try { Process.Start(r.Url); } catch (Exception) { }
+                });
+            });
         }
 
         void SafeInvoke(Action a)
