@@ -232,6 +232,9 @@ namespace LogVice.Tests
             string body = "Fixed a thing.\r\n\r\n- one\r\n\r\n### Deployment\n\n| | |\n### SHA256\n```\nabc\n```";
             Check(ReleaseNotes.FromRelease(body) == "Fixed a thing.\n\n- one" && ReleaseNotes.FromRelease("### Deployment\nx") == null && ReleaseNotes.FromRelease(null) == null,
                 "release notes from GitHub leave out the deployment table and checksums");
+            string verified = "### Verify this download\n\n```\nabc  LogVice.msi\n```\n\n```powershell\nGet-FileHash .\\LogVice.msi\n```\n\nCheck it.\n\n### What's new\n\nFixed a thing.\n\n- one\n\n### Deployment\n\n| | |";
+            Check(ReleaseNotes.FromRelease(verified) == "Fixed a thing.\n\n- one" && ReleaseNotes.FromRelease("### Verify this download\n\nx\n\n### Deployment\nx") == null,
+                "release notes from GitHub leave out the verify block at the top");
 
             UpdateInfo r = new UpdateInfo();
             Updates.Parse("{\"tag_name\":\"v99.0.0\",\"body\":\"Line \\\"one\\\"\\r\\n- **b\\u00e6r** C:\\\\Logs\\n\\n### Deployment\\nx\"}", r);

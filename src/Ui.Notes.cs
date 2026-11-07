@@ -85,13 +85,26 @@ namespace LogVice
         public static string FromRelease(string body)
         {
             if (string.IsNullOrEmpty(body)) return null;
-            string s = "\n" + body.Replace("\r\n", "\n");
-            foreach (string cut in new string[] { "\n### Deployment", "\n### SHA256" })
+            StringBuilder sb = new StringBuilder();
+            bool seen = false, skip = false;
+            foreach (string raw in body.Replace("\r\n", "\n").Split('\n'))
             {
-                int i = s.IndexOf(cut, StringComparison.Ordinal);
-                if (i >= 0) s = s.Substring(0, i);
+                string line = raw.TrimEnd();
+                if (!seen && line.Length > 0)
+                {
+                    seen = true;
+                    skip = line == "### Verify this download";
+                    if (skip) continue;
+                }
+                if (skip)
+                {
+                    if (line == "### What's new") skip = false;
+                    continue;
+                }
+                if (line == "### Deployment" || line == "### SHA256") break;
+                sb.Append(raw).Append('\n');
             }
-            s = s.Trim();
+            string s = sb.ToString().Trim();
             return s.Length == 0 ? null : s;
         }
 

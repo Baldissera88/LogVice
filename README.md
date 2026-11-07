@@ -224,7 +224,7 @@ LogVice is plain C# 5 and Windows Forms, with no NuGet packages.
 
 The tests in `tests/` parse a set of small synthetic logs and compare the result with `tests/expected.txt`, so any change to how a log is read shows up. After an intended change, refresh the file with `./tests/run.sh --update`.
 
-**On GitHub**, the [Build workflow](.github/workflows/build.yml) runs `package.sh` on every push. When a release is published, it builds the exe and MSI, attaches them with `SHA256SUMS.txt`, signs a build provenance attestation, and adds the product code and checksums to the release notes.
+**On GitHub**, the [Build workflow](.github/workflows/build.yml) runs `package.sh` on every push. When a release is published, it builds the exe and MSI, attaches them with `SHA256SUMS.txt`, signs a build provenance attestation, and puts the checksums and the commands to verify a download at the top of the release notes, with the product code at the bottom.
 
 It also writes the winget manifests for the release with [`winget/manifests.sh`](winget/manifests.sh) and keeps them as the `winget-<version>` artifact. When the repository secret `WINGET_TOKEN` is set, a second job submits them to [winget-pkgs](https://github.com/microsoft/winget-pkgs) with `wingetcreate`. The token is a classic GitHub token with the `public_repo` scope; `wingetcreate` uses it to fork winget-pkgs to your account and open the pull request.
 

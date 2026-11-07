@@ -7,9 +7,7 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 | Version | Highlights | Upgrade |
 |---|---|---|
 | **1.5.6** (latest) | Installing an update no longer hangs, with a window that shows each step | Run the MSI, or select Update in LogVice. It replaces Trace Lens and any earlier version |
-| 1.5.6 | Installing an update no longer hangs: LogVice closes at once and an updater window shows each step |
 | 1.5.5 | Follow an item: Intune Store apps, remediations, scripts and installed apps, several items at once, Windows events in the timeline | |
-| 1.5.5 | Follow an item: Store apps, remediations, platform scripts and installed apps, several items at once, Windows events in the timeline |
 | 1.5.4 | New app icon, and an icon of its own for log files | |
 | 1.5.3 | What's new in the app, release notes in the Update dialog, winget manifests with every release | |
 | 1.5.2 | Install updates from LogVice with one click, checked against the release checksums | |

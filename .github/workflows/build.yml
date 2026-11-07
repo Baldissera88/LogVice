@@ -80,9 +80,32 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release upload "$GITHUB_REF_NAME" LogVice.exe LogVice.msi SHA256SUMS.txt --clobber
-          gh release view "$GITHUB_REF_NAME" --json body --jq .body | awk '/^### Deployment\r?$/{exit} {print}' > release-notes.md
-          cp release-notes.md notes.md
+          gh release view "$GITHUB_REF_NAME" --json body --jq .body | tr -d '\r' | awk '
+            { line = $0; sub(/[ \t]+$/, "", line) }
+            !seen && NF { seen = 1; if (line == "### Verify this download") { skip = 1; next } }
+            skip { if (line ~ /^### What.s new$/) skip = 0; next }
+            line == "### Deployment" || line == "### SHA256" { exit }
+            { print }
+          ' | awk 'NF { for (; blank > 0; blank--) print ""; print; found = 1; next } found { blank++ }' > release-notes.md
           {
+            echo "### Verify this download"
+            echo
+            echo '```'
+            cat SHA256SUMS.txt
+            echo '```'
+            echo
+            echo '```powershell'
+            echo 'Get-FileHash .\LogVice.msi'
+            echo "gh attestation verify .\\LogVice.msi -R ${GITHUB_REPOSITORY}"
+            echo '```'
+            echo
+            echo "\`Get-FileHash\` should show the same SHA256 as above. \`gh attestation verify\` confirms that GitHub Actions built the file from this repository, at commit [${GITHUB_SHA::7}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA})."
+            if grep -q '[^[:space:]]' release-notes.md; then
+              echo
+              echo "### What's new"
+              echo
+              cat release-notes.md
+            fi
             echo
             echo "### Deployment"
             echo
@@ -91,15 +114,7 @@ jobs:
             echo "| Product code | \`${{ steps.info.outputs.code }}\` |"
             echo "| Install | \`msiexec /i LogVice.msi /qn\` |"
             echo "| Uninstall | \`msiexec /x ${{ steps.info.outputs.code }} /qn\` |"
-            echo
-            echo "### SHA256"
-            echo
-            echo '```'
-            cat SHA256SUMS.txt
-            echo '```'
-            echo
-            echo "Built by GitHub Actions from commit ${GITHUB_SHA}. Verify a download with \`gh attestation verify LogVice.msi -R ${GITHUB_REPOSITORY}\`."
-          } >> notes.md
+          } > notes.md
           gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
 
       - name: Write winget manifests
