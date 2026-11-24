@@ -99,7 +99,7 @@ namespace LogVice
                 return;
             }
             System.Threading.ThreadPool.QueueUserWorkItem(delegate { Updates.CleanUp(); });
-            Run(ExpandArgs(args));
+            Run(StartOptions.Parse(args));
         }
 
         public static Icon AppIcon()
@@ -117,7 +117,88 @@ namespace LogVice
             return icon;
         }
 
-        static string[] ExpandArgs(string[] args)
+        // What was given on the command line for this run.
+        public static StartOptions Options = new StartOptions();
+
+        public static void Run(StartOptions options)
+        {
+            Options = options ?? new StartOptions();
+            if (!initialized)
+            {
+                initialized = true;
+                Settings.ReadOnly = Options.Shot != null;
+                Settings.Migrate();
+                Theme.Override = Options.Theme;
+                if (Options.Shot == null) Theme.KeepEarlierChoice();
+                try { NativeMethods.SetProcessDPIAware(); } catch (Exception) { }
+                try
+                {
+                    Application.EnableVisualStyles();
+                    Application.SetCompatibleTextRenderingDefault(false);
+                }
+                catch (InvalidOperationException) { }
+                try
+                {
+                    using (Graphics g = Graphics.FromHwnd(IntPtr.Zero)) Dpi.Scale = Math.Max(1f, g.DpiX / 96f);
+                }
+                catch (Exception) { }
+                Fonts.Init();
+                if (Options.Scale != null) ShotScale.Apply(Options.Scale);
+                Application.ThreadException += delegate (object sender, System.Threading.ThreadExceptionEventArgs e)
+                {
+                    MessageBox.Show(e.Exception.Message, "LogVice", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                };
+            }
+            using (MainForm f = new MainForm(Options.Paths))
+            {
+                Application.Run(f);
+            }
+        }
+    }
+
+    // The command line of one run: the files to open and the options for demos and screenshots.
+    public sealed class StartOptions
+    {
+        public string[] Paths = new string[0];
+        public bool Demo;
+        // --shot <png>: draw the window into a PNG and exit. Nothing is saved in this run.
+        public string Shot;
+        // --theme <name>: the theme for this run only.
+        public string Theme;
+        // --page <name>, --select <text>, --scale <percent>: what a screenshot shows.
+        public string Page, Select, Scale;
+        public Size Size;
+
+        public static StartOptions Parse(string[] args)
+        {
+            StartOptions o = new StartOptions();
+            List<string> rest = new List<string>();
+            args = args ?? new string[0];
+            for (int i = 0; i < args.Length; i++)
+            {
+                string a = args[i] ?? "";
+                string low = a.ToLowerInvariant();
+                bool more = i + 1 < args.Length;
+                if (low == "--demo") o.Demo = true;
+                else if (low == "--shot" && more) o.Shot = args[++i];
+                else if (low == "--theme" && more) o.Theme = args[++i];
+                else if (low == "--page" && more) o.Page = args[++i];
+                else if (low == "--select" && more) o.Select = args[++i];
+                else if (low == "--scale" && more) o.Scale = args[++i];
+                else if (low == "--size" && more)
+                {
+                    string[] wh = args[++i].ToLowerInvariant().Split('x');
+                    int w, h;
+                    if (wh.Length == 2 && int.TryParse(wh[0], out w) && int.TryParse(wh[1], out h) && w >= 200 && h >= 200) o.Size = new Size(w, h);
+                }
+                else if (low.StartsWith("--", StringComparison.Ordinal) && low.Length > 2) continue;
+                else rest.Add(a);
+            }
+            o.Paths = ExpandArgs(rest.ToArray());
+            return o;
+        }
+
+        public static string[] ExpandArgs(string[] args)
         {
             List<string> list = new List<string>();
             foreach (string a in args ?? new string[0])
@@ -140,36 +221,6 @@ namespace LogVice
                 catch (Exception) { }
             }
             return list.ToArray();
-        }
-
-        public static void Run(string[] paths)
-        {
-            if (!initialized)
-            {
-                initialized = true;
-                Settings.Migrate();
-                try { NativeMethods.SetProcessDPIAware(); } catch (Exception) { }
-                try
-                {
-                    Application.EnableVisualStyles();
-                    Application.SetCompatibleTextRenderingDefault(false);
-                }
-                catch (InvalidOperationException) { }
-                try
-                {
-                    using (Graphics g = Graphics.FromHwnd(IntPtr.Zero)) Dpi.Scale = Math.Max(1f, g.DpiX / 96f);
-                }
-                catch (Exception) { }
-                Fonts.Init();
-                Application.ThreadException += delegate (object sender, System.Threading.ThreadExceptionEventArgs e)
-                {
-                    MessageBox.Show(e.Exception.Message, "LogVice", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                };
-            }
-            using (MainForm f = new MainForm(paths))
-            {
-                Application.Run(f);
-            }
         }
     }
 }

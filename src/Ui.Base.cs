@@ -26,9 +26,11 @@ namespace LogVice
         }
     }
 
+    // The colours of the window, made from a Palette (Palettes.cs).
     public sealed class Theme
     {
-        public bool IsDark;
+        public bool IsDark, MonoNumbers;
+        public float Corners = 1f;
         public string Name = "";
         public Color Bg, Card, CardAlt, Stroke, Divider, Text, Text2, Text3;
         public Color Accent, AccentHover, OnAccent, AccentSoft;
@@ -36,115 +38,101 @@ namespace LogVice
         public Color ErrBg, ErrFg, WarnBg, WarnFg, OkFg, Mark, OnMark, Thumb;
         public Color Zebra, Header, Glow;
 
-        public static Theme Light()
+        public static Theme Light() { return From(Palettes.Light()); }
+        public static Theme Dark() { return From(Palettes.Dark()); }
+        public static Theme Vice() { return From(Palettes.Vice()); }
+        public static Theme Terminal() { return From(Palettes.Terminal()); }
+        public static Theme Amber() { return From(Palettes.Amber()); }
+        public static Theme Synthwave() { return From(Palettes.Synthwave()); }
+
+        public static Theme From(Palette p)
         {
             Theme t = new Theme();
-            t.Name = "Light";
-            t.IsDark = false;
-            t.Bg = Hex(0xEEF1F6);
-            t.Card = Hex(0xFFFFFF);
-            t.CardAlt = Hex(0xF5F7FA);
-            t.Stroke = Hex(0xDCE1E8);
-            t.Divider = Hex(0xE6E9EF);
-            t.Text = Hex(0x111418);
-            t.Text2 = Hex(0x454B54);
-            t.Text3 = Hex(0x6E7580);
-            t.Accent = Hex(0x005FB8);
-            t.AccentHover = Mix(t.Accent, Color.White, 0.12f);
-            t.OnAccent = Color.White;
-            t.AccentSoft = Mix(t.Bg, t.Accent, 0.12f);
-            t.Hover = Color.FromArgb(14, 0, 0, 0);
-            t.Pressed = Color.FromArgb(8, 0, 0, 0);
-            t.Field = Hex(0xFFFFFF);
-            t.FieldFocus = Hex(0xFFFFFF);
-            t.FieldStroke = Hex(0xE0E0E0);
-            t.FieldBottom = Hex(0x8A8A8A);
-            t.ErrBg = Hex(0xFDE3E5);
-            t.ErrFg = Hex(0xC42B1C);
-            t.WarnBg = Hex(0xFFF1C7);
-            t.WarnFg = Hex(0x9D5D00);
-            t.OkFg = Hex(0x0F7B0F);
-            t.Mark = Hex(0xFFE45C);
-            t.OnMark = Hex(0x1B1B1B);
-            t.Thumb = Color.FromArgb(120, 0, 0, 0);
-            t.Zebra = Hex(0xF7F9FC);
-            t.Header = Hex(0xF7F9FC);
-            t.Glow = Mix(t.Card, t.Accent, 0.10f);
+            t.Name = p.Name;
+            t.IsDark = p.IsDark;
+            t.Corners = p.Corners;
+            t.MonoNumbers = p.MonoNumbers;
+            t.Bg = Hex(p.Bg);
+            t.Card = Hex(p.Card);
+            t.CardAlt = Hex(p.CardAlt);
+            t.Stroke = Hex(p.Stroke);
+            t.Divider = Hex(p.Divider);
+            t.Text = Hex(p.Text);
+            t.Text2 = Hex(p.Text2);
+            t.Text3 = Hex(p.Text3);
+            t.Accent = Hex(p.Accent);
+            t.AccentHover = Hex(p.AccentHover);
+            t.OnAccent = Hex(p.OnAccent);
+            t.AccentSoft = Hex(p.AccentSoft);
+            t.Hover = Tint(p.HoverTint, p.HoverAlpha);
+            t.Pressed = Tint(p.HoverTint, p.PressedAlpha);
+            t.Field = Hex(p.Field);
+            t.FieldFocus = Hex(p.FieldFocus);
+            t.FieldStroke = Hex(p.FieldStroke);
+            t.FieldBottom = Hex(p.FieldBottom);
+            t.ErrBg = Hex(p.ErrBg);
+            t.ErrFg = Hex(p.ErrFg);
+            t.WarnBg = Hex(p.WarnBg);
+            t.WarnFg = Hex(p.WarnFg);
+            t.OkFg = Hex(p.OkFg);
+            t.Mark = Hex(p.Mark);
+            t.OnMark = Hex(p.OnMark);
+            t.Thumb = Tint(p.ThumbTint, p.ThumbAlpha);
+            t.Zebra = Hex(p.Zebra);
+            t.Header = Hex(p.Header);
+            t.Glow = Hex(p.Glow);
             return t;
         }
 
-        public static Theme Dark()
+        // System, or a name that is not known, follows the Windows app mode.
+        public static Theme Named(string name)
         {
-            Theme t = new Theme();
-            t.Name = "Dark";
-            t.IsDark = true;
-            t.Bg = Hex(0x191B20);
-            t.Card = Hex(0x24272D);
-            t.CardAlt = Hex(0x2C3037);
-            t.Stroke = Hex(0x131519);
-            t.Divider = Hex(0x363A42);
-            t.Text = Hex(0xF5F7FA);
-            t.Text2 = Hex(0xD3D7DE);
-            t.Text3 = Hex(0xA2A8B2);
-            t.Accent = Hex(0x60CDFF);
-            t.AccentHover = Mix(t.Accent, Color.Black, 0.1f);
-            t.OnAccent = Hex(0x000000);
-            t.AccentSoft = Mix(t.Bg, t.Accent, 0.16f);
-            t.Hover = Color.FromArgb(16, 255, 255, 255);
-            t.Pressed = Color.FromArgb(10, 255, 255, 255);
-            t.Field = Hex(0x2A2E35);
-            t.FieldFocus = Hex(0x1D2025);
-            t.FieldStroke = Hex(0x3A3F48);
-            t.FieldBottom = Hex(0x9A9A9A);
-            t.ErrBg = Hex(0x47292B);
-            t.ErrFg = Hex(0xFF99A4);
-            t.WarnBg = Hex(0x45391D);
-            t.WarnFg = Hex(0xFCE100);
-            t.OkFg = Hex(0x6CCB5F);
-            t.Mark = Hex(0xFCE100);
-            t.OnMark = Hex(0x000000);
-            t.Thumb = Color.FromArgb(150, 255, 255, 255);
-            t.Zebra = Hex(0x282B32);
-            t.Header = Hex(0x292C33);
-            t.Glow = Mix(t.Card, t.Accent, 0.12f);
-            return t;
+            Palette p = Palettes.Find(name);
+            if (p != null) return From(p);
+            return SystemPrefersDark() ? Dark() : Light();
         }
 
-        public static Theme Vice()
+        // A theme name given on the command line (--theme). It is used in this run and never saved.
+        public static string Override;
+
+        // The theme name saved in Settings, or Vice when none is saved yet or the name is not known.
+        public static string SavedName()
         {
-            Theme t = new Theme();
-            t.Name = "Vice";
-            t.IsDark = true;
-            t.Bg = Hex(0x120D26);
-            t.Card = Hex(0x1C1535);
-            t.CardAlt = Hex(0x251C45);
-            t.Stroke = Hex(0x0B0819);
-            t.Divider = Hex(0x352A60);
-            t.Text = Hex(0xFFF5FD);
-            t.Text2 = Hex(0xE6D5F7);
-            t.Text3 = Hex(0xB39CD6);
-            t.Accent = Hex(0xFF4FB4);
-            t.AccentHover = Mix(t.Accent, Color.White, 0.12f);
-            t.OnAccent = Hex(0x1A0718);
-            t.AccentSoft = Mix(t.Bg, t.Accent, 0.18f);
-            t.Hover = Color.FromArgb(22, 255, 120, 220);
-            t.Pressed = Color.FromArgb(12, 255, 120, 220);
-            t.Field = Hex(0x211A3F);
-            t.FieldFocus = Hex(0x170F2E);
-            t.FieldStroke = Hex(0x3D3070);
-            t.FieldBottom = Hex(0x2EE6D6);
-            t.ErrBg = Hex(0x4A1638);
-            t.ErrFg = Hex(0xFF6FA8);
-            t.WarnBg = Hex(0x4A2C1F);
-            t.WarnFg = Hex(0xFFB36B);
-            t.OkFg = Hex(0x2EE6D6);
-            t.Mark = Hex(0x2EE6D6);
-            t.OnMark = Hex(0x07131A);
-            t.Thumb = Color.FromArgb(170, 255, 120, 220);
-            t.Zebra = Hex(0x20183D);
-            t.Header = Hex(0x221A42);
-            t.Glow = Mix(t.Card, t.Accent, 0.38f);
-            return t;
+            return Palettes.SavedName(!string.IsNullOrEmpty(Override) ? Override : Settings.Get("Theme"));
+        }
+
+        // The one place that turns the saved choice into a theme.
+        public static Theme Chosen()
+        {
+            return Named(SavedName());
+        }
+
+        // A first start of a version that has themes: someone who used LogVice before and never picked a theme
+        // followed the Windows app mode, so they keep that. A new install gets Vice.
+        public static void KeepEarlierChoice()
+        {
+            if (!string.IsNullOrEmpty(Settings.Get("Theme"))) return;
+            bool used = Settings.Get("LastVersion") != null || Settings.Get("UpdateChecked") != null || Settings.Get("Window") != null || Settings.Recent().Count > 0;
+            if (used) Settings.Set("Theme", "System");
+        }
+
+        // How round the corners of the theme in use are. Set when a theme is put on a window, read by Draw.
+        public static float CornerScale = 1f;
+
+        public void Activate()
+        {
+            CornerScale = Corners;
+        }
+
+        // A number, time or duration in the theme's font for numbers: the monospace font in Terminal and Amber.
+        public Font Num(Font normal)
+        {
+            if (!MonoNumbers || normal == null) return normal;
+            if (normal == Fonts.Title) return Fonts.MonoTitle;
+            if (normal == Fonts.Small || normal == Fonts.SmallSemibold) return Fonts.MonoSmall;
+            if (normal == Fonts.UiSemibold) return Fonts.MonoSemibold;
+            if (normal == Fonts.Ui) return Fonts.Mono;
+            return normal;
         }
 
         public Color OnSeverity
@@ -155,6 +143,11 @@ namespace LogVice
         public static Color Hex(int rgb)
         {
             return Color.FromArgb(255, (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+        }
+
+        static Color Tint(int rgb, int alpha)
+        {
+            return Color.FromArgb(Math.Max(0, Math.Min(255, alpha)), (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
         }
 
         public static Color Mix(Color a, Color b, float t)
@@ -191,7 +184,7 @@ namespace LogVice
 
     public static class Fonts
     {
-        public static Font Ui, UiSemibold, Small, SmallSemibold, Title, Hero, Mono, MonoSmall, Detail;
+        public static Font Ui, UiSemibold, Small, SmallSemibold, Title, Hero, Mono, MonoSmall, MonoSemibold, MonoTitle, Detail, Icons, IconsSmall;
         public static int LogSize = 1;
         static Dictionary<string, bool> installed;
         static string monoName;
@@ -211,14 +204,19 @@ namespace LogVice
             string semi = Pick(null, "Segoe UI Variable Text Semibold", "Segoe UI Semibold");
             string disp = Pick(null, "Segoe UI Variable Display Semibold", "Segoe UI Semibold");
             string mono = Pick(null, "Cascadia Mono", "Consolas", "Lucida Console");
+            string icons = Pick(null, "Segoe Fluent Icons", "Segoe MDL2 Assets");
             Ui = new Font(ui, 9.75f);
             UiSemibold = semi != null ? new Font(semi, 9.75f) : new Font(ui, 9.75f, FontStyle.Bold);
             Small = new Font(ui, 8.25f);
             SmallSemibold = semi != null ? new Font(semi, 8.25f) : new Font(ui, 8.25f, FontStyle.Bold);
-            Title = disp != null ? new Font(disp, 16f) : new Font(ui, 16f, FontStyle.Bold);
+            Title = disp != null ? new Font(disp, 14f) : new Font(ui, 14f, FontStyle.Bold);
             Hero = disp != null ? new Font(disp, 21f) : new Font(ui, 21f, FontStyle.Bold);
             monoName = mono;
             MonoSmall = mono != null ? new Font(mono, 9f) : new Font(FontFamily.GenericMonospace, 9f);
+            MonoSemibold = new Font(MonoSmall.FontFamily, 9.25f, FontStyle.Bold);
+            MonoTitle = new Font(MonoSmall.FontFamily, 13f, FontStyle.Bold);
+            Icons = icons != null ? new Font(icons, 10.5f) : null;
+            IconsSmall = icons != null ? new Font(icons, 7.5f) : null;
             SetLogSize(LogSize);
         }
 
@@ -357,8 +355,12 @@ namespace LogVice
         const string KeyPath = @"Software\LogVice";
         const string OldKeyPath = @"Software\Trace Lens";
 
+        // Set for a screenshot run (--shot): nothing is written to the registry.
+        public static bool ReadOnly;
+
         public static void Migrate()
         {
+            if (ReadOnly) return;
             try
             {
                 using (RegistryKey now = Registry.CurrentUser.OpenSubKey(KeyPath))
@@ -398,6 +400,7 @@ namespace LogVice
 
         public static void Set(string name, string value)
         {
+            if (ReadOnly) return;
             try
             {
                 using (RegistryKey k = Registry.CurrentUser.CreateSubKey(KeyPath))
@@ -444,6 +447,7 @@ namespace LogVice
 
         public static void SetList(string name, List<string> values)
         {
+            if (ReadOnly) return;
             try
             {
                 using (RegistryKey k = Registry.CurrentUser.CreateSubKey(KeyPath))
@@ -456,6 +460,7 @@ namespace LogVice
 
         public static void ResetAll()
         {
+            if (ReadOnly) return;
             try { Registry.CurrentUser.DeleteSubKeyTree(KeyPath, false); } catch (Exception) { }
         }
 
@@ -505,6 +510,7 @@ namespace LogVice
 
         static void SaveRecent(List<string> entries)
         {
+            if (ReadOnly) return;
             try
             {
                 using (RegistryKey k = Registry.CurrentUser.CreateSubKey(KeyPath))
@@ -562,8 +568,10 @@ namespace LogVice
 
     public static class Draw
     {
+        // The radius is scaled by the corners of the theme in use: 0 draws square corners.
         public static GraphicsPath Round(RectangleF r, float rad)
         {
+            rad *= Theme.CornerScale;
             GraphicsPath p = new GraphicsPath();
             float d = Math.Min(rad * 2, Math.Min(r.Width, r.Height));
             if (d <= 0.5f)
@@ -599,7 +607,7 @@ namespace LogVice
                 g.SetClip(clip);
                 Color shade = t.IsDark ? Color.FromArgb(70, 0, 0, 0) : Color.FromArgb(22, 20, 40, 80);
                 using (Pen p = new Pen(shade, Dpi.F(1.5f)))
-                    g.DrawLine(p, r.X + rad, r.Bottom - Dpi.F(0.75f), r.Right - rad, r.Bottom - Dpi.F(0.75f));
+                    g.DrawLine(p, r.X + rad * Theme.CornerScale, r.Bottom - Dpi.F(0.75f), r.Right - rad * Theme.CornerScale, r.Bottom - Dpi.F(0.75f));
             }
             g.Restore(st);
         }

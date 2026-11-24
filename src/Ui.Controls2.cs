@@ -93,7 +93,7 @@ namespace LogVice
 
         int ItemW(int i)
         {
-            return Draw.Measure(items[i], Fonts.UiSemibold).Width + Dpi.S(28);
+            return Draw.Measure(items[i], Fonts.UiSemibold).Width + Dpi.S(22);
         }
 
         public int Selected

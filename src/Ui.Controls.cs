@@ -156,7 +156,7 @@ namespace LogVice
             if (Kind == ButtonKind.Chip) w += Dpi.S(8) + Dpi.S(7);
             bool showText = !(Kind == ButtonKind.Chip && compact);
             if (showText) w += Draw.Measure(Text, Font).Width;
-            if (Count.Length > 0) w += (showText ? Dpi.S(6) : 0) + Draw.Measure(Count, Fonts.UiSemibold).Width;
+            if (Count.Length > 0) w += (showText ? Dpi.S(6) : 0) + Draw.Measure(Count, theme.Num(Fonts.UiSemibold)).Width;
             if (Trailing != Glyph.None) w += Dpi.S(6) + Dpi.S(14);
             w += Dpi.S(Kind == ButtonKind.Chip ? 12 : 12);
             return new Size(w, h);
@@ -306,7 +306,7 @@ namespace LogVice
                 }
                 if (Count.Length > 0)
                 {
-                    Draw.Text(g, Count, Fonts.UiSemibold, new Rectangle(x, 0, Math.Max(0, right - x + Dpi.S(4)), Height), fg, Draw.Line);
+                    Draw.Text(g, Count, theme.Num(Fonts.UiSemibold), new Rectangle(x, 0, Math.Max(0, right - x + Dpi.S(4)), Height), fg, Draw.Line);
                 }
                 if (Trailing != Glyph.None)
                 {
@@ -902,7 +902,8 @@ namespace LogVice
                 Draw.Fill(g, new RectangleF(x0, 0, w, th), th / 2f, theme.Divider);
                 Draw.Fill(g, new RectangleF(x0, 0, Math.Max(th, w * Math.Min(1f, Progress)), th), th / 2f, theme.Accent);
             }
-            Font f = Fonts.Small;
+            // The numbers in the status bar are drawn in the font for numbers of the theme.
+            Font f = theme.Num(Fonts.Small);
             int pad = Dpi.S(16);
             int lw = Draw.Measure(LeftText, f).Width;
             int rw = Math.Min(Draw.Measure(RightText, f).Width + 2, Width / 2);
@@ -1031,7 +1032,6 @@ namespace LogVice
     public sealed class StartPage : FluentControl
     {
         public readonly FluentButton OpenButton, BrowseButton, FollowButton, ResumeButton;
-        public string Eyebrow;
         readonly List<LocationCard> cards = new List<LocationCard>();
         readonly List<RecentItem> recent = new List<RecentItem>();
         public event Action<string[]> OpenRecent;
@@ -1247,7 +1247,7 @@ namespace LogVice
             int cw = ColumnWidth();
             int x0 = (Width - cw) / 2;
             Draw.AppMark(g, new RectangleF(x0, markY, Dpi.S(64), Dpi.S(64)), theme);
-            Draw.Text(g, Eyebrow ?? ("LOGVICE  \u00B7  " + Program.Version), Fonts.SmallSemibold, new Rectangle(x0, titleY - Fonts.SmallSemibold.Height - Dpi.S(4), cw, Fonts.SmallSemibold.Height + 2), theme.Accent, Draw.Line);
+            Draw.Text(g, "LOGVICE  \u00B7  " + Program.Version, Fonts.SmallSemibold, new Rectangle(x0, titleY - Fonts.SmallSemibold.Height - Dpi.S(4), cw, Fonts.SmallSemibold.Height + 2), theme.Accent, Draw.Line);
             Draw.Text(g, ResumeButton.Visible ? "Open another log" : "Open a log to get started", Fonts.Hero, new Rectangle(x0, titleY, cw, Fonts.Hero.Height), theme.Text, Draw.Line);
             Draw.Text(g, Desc, Fonts.Ui, new Rectangle(x0, descY, cw, descH + 2), theme.Text2, Draw.Wrap);
             Draw.Text(g, "Log folders on this computer", Fonts.SmallSemibold, new Rectangle(x0, locY, cw, Fonts.SmallSemibold.Height + 2), theme.Text3, Draw.Line);

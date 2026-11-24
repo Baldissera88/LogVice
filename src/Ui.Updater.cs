@@ -13,8 +13,8 @@ namespace LogVice
 
         public UpdaterForm(string version)
         {
-            string pref = Settings.Get("Theme");
-            theme = pref == "Dark" || (pref != "Light" && Theme.SystemPrefersDark()) ? Theme.Dark() : Theme.Light();
+            theme = Theme.Chosen();
+            theme.Activate();
             Text = "LogVice update";
             Font = Fonts.Ui;
             FormBorderStyle = FormBorderStyle.FixedDialog;

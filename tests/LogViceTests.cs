@@ -61,6 +61,10 @@ namespace LogVice.Tests
             EventsWithoutEventLog();
             UpdateRelease();
             Notes();
+            PaletteList();
+            SavedThemeName();
+            PalettesComplete();
+            DemoLogs();
 
             Console.WriteLine(failed == 0 ? "ALL TESTS PASSED" : failed + " TEST(S) FAILED");
             return failed == 0 ? 0 : 1;
@@ -396,6 +400,108 @@ namespace LogVice.Tests
                 Check(Updates.FileHash(tmp) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", "file checksum is SHA-256 in lower case hex");
             }
             finally { File.Delete(tmp); }
+        }
+
+        static void PaletteList()
+        {
+            string[] want = { "System", "Light", "Dark", "Vice", "Terminal", "Amber", "Synthwave" };
+            Check(string.Join(",", Palettes.Choices) == string.Join(",", want) && Palettes.Default == "Vice", "the theme choices are System, Light, Dark, Vice, Terminal, Amber and Synthwave, and Vice is the default");
+            Check(Palettes.All().Count == 6, "there are six palettes, System follows Windows");
+            bool all = true;
+            foreach (string n in want)
+            {
+                Palette p = Palettes.Find(n);
+                if (n == "System") { if (p != null) all = false; }
+                else if (p == null || !string.Equals(p.Name, n, StringComparison.Ordinal)) all = false;
+            }
+            Check(all, "Palettes.Find returns each palette by name and nothing for System");
+            Palette up = Palettes.Find("  TERMINAL "), mixed = Palettes.Find("sYnThWaVe");
+            Check(up != null && up.Name == "Terminal" && mixed != null && mixed.Name == "Synthwave", "Palettes.Find ignores case and spaces around the name");
+            Check(Palettes.Find("Neon") == null && Palettes.Find("") == null && Palettes.Find(null) == null, "Palettes.Find returns null for an unknown name");
+            Check(Palettes.Find("Terminal").Corners == 0f && Palettes.Find("Terminal").MonoNumbers && Palettes.Find("Amber").MonoNumbers && !Palettes.Find("Vice").MonoNumbers && Palettes.Find("Vice").Corners == 1f, "Terminal and Amber have square corners and numbers in the mono font");
+        }
+
+        static void SavedThemeName()
+        {
+            Check(Palettes.SavedName(null) == "Vice" && Palettes.SavedName("") == "Vice" && Palettes.SavedName("   ") == "Vice", "no saved theme means Vice");
+            Check(Palettes.SavedName("Neon") == "Vice" && Palettes.SavedName("Light2") == "Vice", "an unknown saved theme falls back to Vice");
+            Check(Palettes.SavedName("System") == "System" && Palettes.SavedName("dark") == "Dark" && Palettes.SavedName(" Amber ") == "Amber", "a saved theme keeps its name, with the usual case");
+        }
+
+        static void PalettesComplete()
+        {
+            bool alpha = true, colours = true, contrast = true;
+            string worst = "";
+            foreach (Palette p in Palettes.All())
+            {
+                int[] rgb = { p.Bg, p.Card, p.CardAlt, p.Stroke, p.Divider, p.Text, p.Text2, p.Text3, p.Accent, p.AccentHover, p.OnAccent, p.AccentSoft,
+                    p.Field, p.FieldFocus, p.FieldStroke, p.FieldBottom, p.ErrBg, p.ErrFg, p.WarnBg, p.WarnFg, p.OkFg, p.Mark, p.OnMark, p.Zebra, p.Header, p.Glow };
+                // Black is a real colour for Stroke in some themes, so a value is only unset when the palette name is empty.
+                foreach (int c in rgb) if (c < 0 || c > 0xFFFFFF) colours = false;
+                if (p.Name.Length == 0 || p.Bg == p.Text || p.Card == p.Text || p.Accent == p.OnAccent || p.Mark == p.OnMark) colours = false;
+                if (p.HoverAlpha <= 0 || p.PressedAlpha <= 0 || p.ThumbAlpha <= 0 || p.HoverAlpha > 255 || p.ThumbAlpha > 255) alpha = false;
+                System.Drawing.Color hv = Theme.From(p).Hover, th = Theme.From(p).Thumb, mk = Theme.From(p).Mark;
+                if (hv.A == 0 || Theme.From(p).Pressed.A == 0 || th.A == 0 || mk.A != 255 || Theme.From(p).Bg.A != 255) alpha = false;
+                if (Palettes.Contrast(p.Text, p.Card) < 4.5 || Palettes.Contrast(p.OnAccent, p.Accent) < 4.5 || Palettes.Contrast(p.OnMark, p.Mark) < 4.5 || Palettes.Contrast(p.Text3, p.Bg) < 3.0) { contrast = false; worst += p.Name + " "; }
+            }
+            Check(colours, "every palette has all its colours set");
+            Check(alpha, "every palette has hover, pressed and scroll thumb alpha, and the theme keeps it");
+            Check(contrast, "text, accent text and find marks are readable in every palette" + (worst.Length > 0 ? " (check " + worst.Trim() + ")" : ""));
+        }
+
+        static void DemoLogs()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "LogVice-demo-test-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                DateTime day = new DateTime(2026, 11, 24);
+                string[] paths = Demo.Write(dir, day);
+                Check(paths.Length == 10, "the demo writes 10 logs (found " + paths.Length + ")");
+                string[] cm = Demo.CmPaths(paths);
+                Check(cm.Length == 8 && Path.GetFileName(cm[0]) == "AppEnforce.log" && Path.GetFileName(cm[7]) == "smsts.log", "the demo has 8 CMTrace logs in a fixed order");
+                bool formats = true;
+                foreach (string p in cm) if (Load(p).Sources[0].Format != "cm") formats = false;
+                string cbsFormat = Load(Path.Combine(dir, "CBS.log")).Sources[0].Format;
+                Check(formats && cbsFormat == "cbs", "the demo CMTrace logs are read as CMTrace and CBS.log as CBS");
+                Check(File.Exists(Path.Combine(dir, "contoso-agent.jsonl")) && File.ReadAllText(Path.Combine(dir, "contoso-agent.jsonl")).StartsWith("{", StringComparison.Ordinal), "the demo has a JSON Lines log");
+
+                int lines = 0;
+                foreach (string p in paths) lines += File.ReadAllLines(p).Length;
+                Check(lines >= 2000 && lines <= 5000, "the demo logs have between 2,000 and 5,000 lines (" + lines + ")");
+
+                Store st = Load(cm);
+                int errors = st.SevCount[3], warnings = st.SevCount[2], infos = st.SevCount[1];
+                Check(st.Count > 1500 && errors >= 5 && warnings >= 10 && infos > errors + warnings, "the demo logs have errors, warnings and information (" + errors + " errors, " + warnings + " warnings, " + infos + " info)");
+                Store cbs = Load(Path.Combine(dir, "CBS.log"));
+                Check(cbs.SevCount[3] >= 2 && cbs.SevCount[2] >= 2, "CBS.log has errors and warnings");
+
+                bool sorted = true;
+                for (int o = 1; o < st.Count; o++) if (st.Key[st.Order[o]] < st.Key[st.Order[o - 1]]) sorted = false;
+                HashSet<int> sources = new HashSet<int>();
+                for (int o = 0; o < 120 && o < st.Count; o++) sources.Add(st.Src[st.Order[o]]);
+                Check(sorted && sources.Count >= 3, "the demo logs interleave by time (the first 120 rows come from " + sources.Count + " files)");
+                long first = long.MaxValue, last = long.MinValue;
+                for (int i = 0; i < st.Count; i++) { if (st.Time[i] < first) first = st.Time[i]; if (st.Time[i] > last) last = st.Time[i]; }
+                double hours = new TimeSpan(last - first).TotalHours;
+                Check(hours >= 1.8 && hours <= 2.2 && new DateTime(first).Date == day, "the demo logs cover about two hours of the given day (" + hours.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " h)");
+
+                bool found1603 = false, found324 = false, retry = false, device = false;
+                for (int i = 0; i < st.Count; i++)
+                {
+                    string m = st.Msg[i];
+                    if (m.Contains("Unmatched exit code (1603)")) found1603 = true;
+                    if (m.Contains("0x87D00324")) found324 = true;
+                    if (m.Contains("will be retried")) retry = true;
+                    if (m.Contains("CONTOSO-LT0417")) device = true;
+                }
+                Check(found1603 && found324 && retry && device, "the demo story has an MSI 1603, a 0x87D00324, a download retry and the made-up device");
+
+                string again = File.ReadAllText(cm[0]);
+                Demo.Write(dir, day);
+                Check(File.ReadAllText(cm[0]) == again, "writing the demo again gives the same logs");
+            }
+            catch (Exception ex) { Fail("demo logs: " + ex); }
+            finally { try { Directory.Delete(dir, true); } catch (Exception) { } }
         }
     }
 }

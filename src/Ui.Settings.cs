@@ -77,8 +77,8 @@ namespace LogVice
             Controls.Add(scroll);
             Controls.Add(header);
 
-            segTheme = new Segmented("System", "Light", "Dark");
-            segTheme.Changed += delegate { if (!loading) { Settings.Set("Theme", new string[] { "System", "Light", "Dark" }[segTheme.Selected]); Changed(); } };
+            segTheme = new Segmented(Palettes.Choices);
+            segTheme.Changed += delegate { if (!loading) { Settings.Set("Theme", Palettes.Choices[segTheme.Selected]); Changed(); } };
             segSize = new Segmented("Small", "Medium", "Large");
             segSize.Changed += delegate { if (!loading) { Settings.Set("TextSize", segSize.Selected.ToString()); Changed(); } };
             segDensity = new Segmented("Compact", "Standard", "Relaxed");
@@ -91,7 +91,7 @@ namespace LogVice
             togUpdates = Toggle("UpdateCheck", true);
 
             AddS(new SectionTitle("Appearance"));
-            AddS(new SettingRow(Glyph.Palette, "Theme", "Choose light or dark, or follow the Windows app mode.", segTheme));
+            AddS(new SettingRow(Glyph.Palette, "Theme", "Choose a theme, or System to follow the Windows app mode.", segTheme));
             AddS(new SettingRow(Glyph.Text, "Log text size", "Size of the text in the log list and the detail pane.", segSize));
             AddS(new SettingRow(Glyph.Rows, "Row spacing", "How tightly rows are packed in the log list.", segDensity));
             AddS(new SettingRow(Glyph.Warning, "Tint error and warning rows", "Colour the whole row red or amber, not only the severity icon. Your own highlight rules are set under Highlights.", togTint));
@@ -227,8 +227,7 @@ namespace LogVice
         public void LoadValues()
         {
             loading = true;
-            string tp = Settings.Get("Theme");
-            segTheme.SetSilently(tp == "Light" ? 1 : tp == "Dark" ? 2 : 0);
+            segTheme.SetSilently(Math.Max(0, Array.IndexOf(Palettes.Choices, Theme.SavedName())));
             segSize.SetSilently(Settings.GetInt("TextSize", 1, 0, 2));
             segDensity.SetSilently(Settings.GetInt("Density", 1, 0, 2));
             togTint.SetSilently(Settings.GetBool("Tint", true));

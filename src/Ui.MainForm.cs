@@ -11,7 +11,7 @@ namespace LogVice
     using System.Threading.Tasks;
     using System.Windows.Forms;
 
-    public sealed class MainForm : Form
+    public sealed partial class MainForm : Form
     {
         const string HelpText = "Select a row to see the full entry. Error codes in the message are links to Error lookup.\r\n\r\n" +
             "Ctrl+O  open logs          Ctrl+Shift+O  merge in\r\n" +
@@ -34,8 +34,7 @@ namespace LogVice
         int hitCount;
         bool jumpOnFind;
         int selEntry = -1;
-        bool loading, filtering, suppress, reloading, homeMode, vice;
-        string typed = "";
+        bool loading, filtering, suppress, reloading, homeMode;
         List<HighlightRule> rules = new List<HighlightRule>();
         HighlightRule[] markRules = new HighlightRule[0];
         byte[] marks;
@@ -134,6 +133,12 @@ namespace LogVice
             StartPosition = FormStartPosition.CenterScreen;
             Size = new Size(Dpi.S(1360), Dpi.S(880));
             MinimumSize = new Size(Dpi.S(900), Dpi.S(560));
+            if (!Program.Options.Size.IsEmpty)
+            {
+                StartPosition = FormStartPosition.Manual;
+                Location = new Point(0, 0);
+                Size = Program.Options.Size;
+            }
             Icon appIcon = Program.AppIcon();
             if (appIcon != null) Icon = appIcon;
 
@@ -289,7 +294,7 @@ namespace LogVice
             bFindNext = Btn(ButtonKind.Subtle, Glyph.Down, "", "Next match (F3)", delegate { FindStep(1); });
             bErrPrev = Btn(ButtonKind.Subtle, Glyph.ErrUp, "", "Previous error (Shift+F8)", delegate { ErrStep(-1); });
             bErrNext = Btn(ButtonKind.Subtle, Glyph.ErrDown, "", "Next error (F8)", delegate { ErrStep(1); });
-            bTheme = Btn(ButtonKind.Subtle, Glyph.Moon, "", "Switch to the dark theme", delegate { ToggleTheme(); });
+            bTheme = Btn(ButtonKind.Subtle, Glyph.Moon, "", "Switch to the dark theme", delegate { CycleTheme(); });
             bSettings = Btn(ButtonKind.Subtle, Glyph.Gear, "", "Settings and about (Ctrl+,)", delegate { if (viewKind == ViewKind.Settings) ShowView(ViewKind.Logs); else OpenSettings(0); });
 
             cmdBar.AddLeft(bHome, bOpen, bRecent, bBrowse, bMerge, bReload, bStop, new BarSep(), bLive, bLookup);
@@ -575,40 +580,20 @@ namespace LogVice
 
         Theme WantedTheme()
         {
-            if (vice) return Theme.Vice();
-            string pref = Settings.Get("Theme");
-            bool dark = pref == "Dark" || (pref != "Light" && Theme.SystemPrefersDark());
-            return dark ? Theme.Dark() : Theme.Light();
+            return Theme.Chosen();
         }
 
-        void ToggleTheme()
+        // The header button: the next theme in the list of choices, without System.
+        void CycleTheme()
         {
-            bool toDark = !theme.IsDark || vice;
-            if (vice) { vice = false; start.Eyebrow = null; toDark = false; }
-            Settings.Set("Theme", toDark ? "Dark" : "Light");
+            List<string> order = new List<string>();
+            foreach (string c in Palettes.Choices) if (c != "System") order.Add(c);
+            string next = order[(order.IndexOf(theme.Name) + 1) % order.Count];
+            Theme.Override = null;
+            Settings.Set("Theme", next);
             settingsView.LoadValues();
             ApplySettings();
-            Note(toDark ? "Dark theme. Settings > Appearance has System too." : "Light theme. Settings > Appearance has System too.");
-        }
-
-        void ToggleVice()
-        {
-            vice = !vice;
-            start.Eyebrow = vice ? "LOGVICE  \u00B7  VICE MODE" : null;
-            ApplyTheme(WantedTheme());
-            start.Invalidate();
-            Note(vice ? "Vice mode. Neon on, pastel suits optional, errors off the streets. Type VICE again to go back." : "Back from Miami. Normal colours restored.");
-        }
-
-        static Control FocusedLeaf(Control c)
-        {
-            ContainerControl cc = c as ContainerControl;
-            while (cc != null && cc.ActiveControl != null)
-            {
-                c = cc.ActiveControl;
-                cc = c as ContainerControl;
-            }
-            return c;
+            Note("Theme: " + next + ". Settings has the others, and System to follow Windows.");
         }
 
         void ApplySettings()
@@ -634,8 +619,7 @@ namespace LogVice
             if (e.Category != Microsoft.Win32.UserPreferenceCategory.General) return;
             SafeInvoke(delegate
             {
-                string pref = Settings.Get("Theme");
-                if (pref == "Light" || pref == "Dark" || vice) return;
+                if (Theme.SavedName() != "System") return;
                 Theme t = WantedTheme();
                 if (t.IsDark != theme.IsDark) ApplyTheme(t);
             });
@@ -668,6 +652,7 @@ namespace LogVice
         void ApplyTheme(Theme t)
         {
             theme = t;
+            t.Activate();
             renderer.Theme = t;
             SuspendLayout();
             BackColor = t.Bg;
@@ -681,8 +666,8 @@ namespace LogVice
                 m.ForeColor = t.Text;
             }
             bErrPrev.GlyphColor = bErrNext.GlyphColor = t.ErrFg;
-            bTheme.Glyph = t.IsDark ? Glyph.Sun : Glyph.Moon;
-            bTheme.Tip = t.Name == "Vice" ? "Leave Vice mode and use the light theme" : t.IsDark ? "Switch to the light theme" : "Switch to the dark theme";
+            bTheme.Glyph = Glyph.Palette;
+            bTheme.Tip = "Theme: " + t.Name + ". Click for the next one.";
             tips.SetToolTip(bTheme, bTheme.Tip);
             ResumeLayout(true);
             if (IsHandleCreated) NativeMethods.StyleWindow(Handle, t);
@@ -713,7 +698,7 @@ namespace LogVice
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
-            if (!eggMode) RestoreWindow();
+            if (!eggMode && Program.Options.Size.IsEmpty && Program.Options.Shot == null) RestoreWindow();
             try
             {
                 split.Panel1MinSize = Dpi.S(160);
@@ -722,10 +707,13 @@ namespace LogVice
             }
             catch (Exception) { }
             lastDir = Settings.Get("LastFolder");
-            start.SetRecent(Settings.Recent());
-            if (!eggMode) Discover();
-            if (!eggMode) CheckUpgraded();
-            if (!eggMode && Updates.Enabled && Updates.DueToday) Updates.CheckAsync(delegate (UpdateInfo r) { SafeInvoke(delegate { UpdateFound(r); }); });
+            // A screenshot shows nothing from this PC: no recent files and no folders found on it.
+            bool shot = Program.Options.Shot != null;
+            start.SetRecent(shot ? new List<string[]>() : Settings.Recent());
+            if (shot) start.SetLocations(new List<LogLocation>());
+            else if (!eggMode) Discover();
+            if (!eggMode && !shot) CheckUpgraded();
+            if (!eggMode && !shot && Updates.Enabled && Updates.DueToday) Updates.CheckAsync(delegate (UpdateInfo r) { SafeInvoke(delegate { UpdateFound(r); }); });
             RefreshCounts();
             ShowStart();
             ShowDetails();
@@ -735,9 +723,11 @@ namespace LogVice
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
+            ShotAtStart();
             if (eggMode) StartEgg();
+            else if (Program.Options.Demo) OpenDemo();
             else if (startPaths.Length > 0) OpenFiles(startPaths, false, false);
-            else if (Settings.GetBool("ReopenLast", false))
+            else if (Settings.GetBool("ReopenLast", false) && Program.Options.Shot == null)
             {
                 List<string[]> r = Settings.Recent();
                 if (r.Count > 0)
@@ -859,12 +849,6 @@ namespace LogVice
                 }
             }
             else konamiPos = keyData == Konami[0] ? 1 : 0;
-            if (keyData >= Keys.A && keyData <= Keys.Z && !(FocusedLeaf(this) is TextBoxBase))
-            {
-                typed = (typed + (char)('a' + (keyData - Keys.A)));
-                if (typed.Length > 8) typed = typed.Substring(typed.Length - 8);
-                if (typed.EndsWith("vice", StringComparison.Ordinal)) { typed = ""; ToggleVice(); return true; }
-            }
             switch (keyData)
             {
                 case Keys.Alt | Keys.Home: ToggleHome(); return true;
@@ -1212,6 +1196,8 @@ namespace LogVice
 
         void OpenFiles(string[] paths, bool merge, bool keep)
         {
+            demoMode = demoNext;
+            demoNext = false;
             List<string> found = new List<string>();
             foreach (string p in paths)
             {
@@ -1441,7 +1427,7 @@ namespace LogVice
             }
             loadSummary = Fmt.Size(bytes) + " read in " + el.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture) + " s" +
                 (tok.State == 1 ? ", stopped early" : "") + (tok.Oom ? ", out of memory" : "");
-            if (!reloading && !eggMode && ok.Count > 0)
+            if (!reloading && !eggMode && !demoMode && ok.Count > 0)
             {
                 bool single = s.Sources.Count == ok.Count && partsAdded > 0 && chosenPaths != null && chosenPaths.Length + partsAdded == ok.Count;
                 Settings.AddRecent(single ? chosenPaths : ok.ToArray());

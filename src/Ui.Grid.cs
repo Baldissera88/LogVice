@@ -336,6 +336,8 @@ namespace LogVice
             if (inSel)
             {
                 float t = p == cur ? (theme.IsDark ? 0.26f : 0.17f) : (theme.IsDark ? 0.15f : 0.09f);
+                // A near-white accent (Terminal, Amber) would wash the row out, so it is mixed in more lightly.
+                if (theme.IsDark && Palettes.Luminance((theme.Accent.R << 16) | (theme.Accent.G << 8) | theme.Accent.B) > 0.8) t *= 0.45f;
                 rowBg = Theme.Mix(bg, theme.Accent, t);
                 Draw.Fill(g, pill, Dpi.F(4), rowBg);
                 if (p == cur)
