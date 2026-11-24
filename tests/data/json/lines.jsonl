@@ -1,0 +1,7 @@
+{"timestamp":"2026-11-24 08:00:01.250","level":"Information","logger":"Contoso.Agent.Heartbeat","thread":14,"message":"Heartbeat sent","host":"CONTOSO-LT0417"}
+{"time":"2026-11-24T08:00:02","severity":"warn","source":"Fabrikam.Sync","tid":7,"msg":"Retry 1 of 3","attempt":1,"detail":{"uri":"https://sync.fabrikam.example","code":503}}
+{"@timestamp":"2026-11-24T08:00:03.5","lvl":"Error","component":"Northwind.Upload","threadId":9,"Message":"Upload failed with 0x80072EE7"}
+{"ts":"2026-11-24 08:00:04","loglevel":"3","category":"Woodgrove.Policy","ThreadId":3,"text":"Policy evaluation finished"}
+{"datetime":"2026-11-24 08:00:05","Level":"debug","module":"Contoso.Cache","text":"cache warmed"}
+{"eventTime":"2026-11-24T08:00:06","app":"Contoso.Agent","message":"Install of Contoso Timesheet failed"}
+{"date":"2026-11-24 08:00:07","level":"crit","logger":"Contoso.Agent.Core","thread":"worker-2","message":"Agent stopped"}

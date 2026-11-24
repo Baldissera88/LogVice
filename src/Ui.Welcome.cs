@@ -181,7 +181,7 @@ namespace LogVice
             RectangleF r = new RectangleF(0, 0, Width, Height);
             if (hot || pressed) Draw.Fill(g, r, Dpi.F(5), Theme.Over(surface, pressed ? theme.Pressed : theme.Hover));
             int s = Dpi.S(16);
-            Draw.Icon(g, EventLogs.IsChannel(Entry.Paths[0]) ? Glyph.Events : Glyph.Recent, new RectangleF(Dpi.S(12), (Height - s) / 2f, s, s), theme.Text3);
+            Draw.Icon(g, EventLogs.IsChannel(Entry.Paths[0]) ? Glyph.Events : Entry.Paths.Length == 1 && Session.IsSessionFile(Entry.Paths[0]) ? Glyph.Session : Glyph.Recent, new RectangleF(Dpi.S(12), (Height - s) / 2f, s, s), theme.Text3);
             int x = Dpi.S(12) + s + Dpi.S(12);
             int right = Width - Dpi.S(44);
             int nw = Math.Min(Draw.Measure(name, Fonts.Ui).Width + 2, Math.Max(0, (right - x) * 2 / 3));
@@ -204,7 +204,7 @@ namespace LogVice
     {
         public const string HeadTitle = "Welcome to LogVice";
         public const string HeadDesc = "Read ConfigMgr, Intune and Windows logs. They are opened read-only and stay on this computer. How do you want to start?";
-        const string Foot = "Reads CMTrace and Intune IME, SMS trace, CBS, DISM and Panther, Windows Update ETL traces, Windows event logs and plain text logs. Drop files anywhere in the window to open them. Hold Ctrl while dropping to merge with what is already open.";
+        const string Foot = "Reads CMTrace and Intune IME, SMS trace, CBS, DISM and Panther, Windows Update ETL traces, Windows event logs, JSON Lines logs and plain text logs. Drop files anywhere in the window to open them. Hold Ctrl while dropping to merge with what is already open.";
         const int MaxRecent = 8;
 
         readonly WelcomeHead head = new WelcomeHead(HeadTitle, HeadDesc);

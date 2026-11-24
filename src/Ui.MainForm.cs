@@ -21,7 +21,8 @@ namespace LogVice
             "F7      next highlight     Shift+F7       previous highlight\r\n" +
             "Ctrl+G  go to line         Alt+Home       start page\r\n" +
             "Ctrl+L  error lookup       F5             reload\r\n" +
-            "Ctrl+I  follow an item\r\n" +
+            "Ctrl+I  follow an item    Ctrl+S         save session\r\n" +
+            "Alt+Left / Alt+Right  back / forward    Ctrl+Shift+C  copy for ticket\r\n" +
             "Ctrl+C  copy rows          Ctrl+A         select all rows";
 
         Theme theme;
@@ -206,6 +207,7 @@ namespace LogVice
             noteTimer.Interval = 4000;
             noteTimer.Tick += delegate { noteTimer.Stop(); UpdateStatus(); };
 
+            InitSessions();
             Resize += delegate { FitRows(); FitDetail(); };
             FitRows();
             FormClosing += delegate { if (!eggMode) SaveWindow(); };
@@ -269,9 +271,9 @@ namespace LogVice
         {
             header = new HeaderBar();
             header.Dock = DockStyle.Top;
-            bBack = Flat(HeaderFold.Back, Glyph.Back, "", "Back to the logs you had open before (Alt+Left)", null);
+            bBack = Flat(HeaderFold.Back, Glyph.Back, "", "Back to the logs you had open before (Alt+Left)", delegate { NavGo(false); });
             bBack.Enabled = false;
-            bForward = Flat(HeaderFold.Forward, Glyph.Forward, "", "Forward (Alt+Right)", null);
+            bForward = Flat(HeaderFold.Forward, Glyph.Forward, "", "Forward to the logs you left with Back (Alt+Right)", delegate { NavGo(true); });
             bForward.Enabled = false;
             bHome = Flat(HeaderFold.Start, Glyph.Home, "Start", "The start page (Alt+Home)", delegate { ToggleHome(); });
             bOpen = Flat(HeaderFold.Open, Glyph.Open, "Open", "Open log files (Ctrl+O), merge more in, open a recent file or look around with made-up logs", delegate { OpenMenu().Show(bOpen, new Point(0, bOpen.Height)); });
@@ -280,6 +282,8 @@ namespace LogVice
             bFollow = Flat(HeaderFold.Follow, Glyph.Follow, "Follow", "Pick an app, update, package or baseline from the ConfigMgr client and see every log line about it in one timeline (Ctrl+I)", delegate { FollowItemDialog(viewKind == ViewKind.Browse ? browse.Computer : null); });
             bLive = Flat(HeaderFold.Live, Glyph.Live, "Live", "Follow the files as new lines are written, or pause", delegate { SetLive(!bLive.Checked); });
             bLive.LiveDot = true;
+            bSave = Flat(HeaderFold.Save, Glyph.Save, "Save", "Save the open logs and filters as a session (Ctrl+S), or copy rows for a ticket (Ctrl+Shift+C)", delegate { SaveMenu().Show(bSave, new Point(0, bSave.Height)); });
+            bSave.Trailing = Glyph.Chevron;
             bStop = Flat(HeaderFold.Stop, Glyph.Stop, "Stop", "Stop reading and show what has been read so far", delegate { if (loadTok != null) loadTok.State = 1; });
             bStop.Outline = true;
             bStop.Wanted = false;
@@ -288,7 +292,7 @@ namespace LogVice
             bTheme = Flat(HeaderFold.Theme, Glyph.Palette, "", "Change the theme", delegate { CycleTheme(); });
             bSettings = Flat(HeaderFold.Settings, Glyph.Gear, "", "Settings (Ctrl+,)", delegate { OpenSettings(null); });
             bHelp = Flat(HeaderFold.Help, Glyph.Help, "", "Help: the start page, what's new, keyboard shortcuts, the command line and About LogVice (F1)", delegate { HelpMenu().Show(bHelp, new Point(bHelp.Width, bHelp.Height), ToolStripDropDownDirection.BelowLeft); });
-            header.AddButtons(bBack, bForward, bHome, bOpen, bBrowse, bFollow, bLive, bStop, bReload, bLookup, bTheme, bSettings, bHelp);
+            header.AddButtons(bBack, bForward, bHome, bOpen, bBrowse, bFollow, bLive, bSave, bStop, bReload, bLookup, bTheme, bSettings, bHelp);
             header.More.Click += Safe.Wrap(delegate { MoreMenu().Show(header.More, new Point(header.More.Width, header.More.Height), ToolStripDropDownDirection.BelowLeft); });
             tips.SetToolTip(header.More, "More: the buttons that do not fit in the window");
             SetLive(Settings.GetBool("Live", true));
@@ -445,7 +449,7 @@ namespace LogVice
             start.FollowRequested += delegate { FollowItemDialog(null); };
             start.DemoRequested += delegate { OpenDemo(); };
             start.OpenLocation += delegate (LogLocation l) { OpenBrowse(l); };
-            start.OpenRecent += delegate (string[] p) { OpenFiles(p, false, false); };
+            start.OpenRecent += delegate (string[] p) { OpenAny(p, false); };
             start.PinToggled += delegate (RecentEntry en) { Settings.PinRecent(en.Paths, !en.Pinned); RefreshRecent(); };
             start.RecentRemoved += delegate (RecentEntry en) { Settings.RemoveRecent(en.Paths); RefreshRecent(); };
             start.ResumeRequested += delegate { LeaveHome(); };
@@ -499,7 +503,8 @@ namespace LogVice
             aFrom = Btn(ButtonKind.Standard, Glyph.Up, "Hide earlier", "Hide rows before this one", delegate { HideBefore(true); });
             aTo = Btn(ButtonKind.Standard, Glyph.Down, "Hide later", "Hide rows after this one", delegate { HideBefore(false); });
             aCopy = Btn(ButtonKind.Standard, Glyph.Copy, "Copy", "Copy the selected rows (Ctrl+C)", delegate { CopySelection(false); });
-            foreach (FluentButton b in new FluentButton[] { aThread, aComp, aFrom, aTo, aCopy })
+            aTicket = Btn(ButtonKind.Standard, Glyph.File, "Copy for ticket", "Copy the selected rows, with the rows around a single one and the error codes in them, as plain text for a ticket (Ctrl+Shift+C)", delegate { CopyTicket(); });
+            foreach (FluentButton b in new FluentButton[] { aThread, aComp, aFrom, aTo, aCopy, aTicket })
             {
                 b.Height = Dpi.S(30);
                 b.Width = b.GetPreferredSize(Size.Empty).Width;
@@ -776,8 +781,13 @@ namespace LogVice
             base.OnShown(e);
             ShotAtStart();
             if (eggMode) StartEgg();
-            else if (Program.Options.Demo) OpenDemo();
-            else if (startPaths.Length > 0) OpenFiles(startPaths, false, false);
+            else if (Program.Options.SessionPath != null) OpenSession(Program.Options.SessionPath, Landing.From(Program.Options));
+            else if (Program.Options.Demo) { landing = Landing.From(Program.Options); OpenDemo(); }
+            else if (startPaths.Length > 0)
+            {
+                landing = Landing.From(Program.Options);
+                OpenFiles(startPaths, false, false);
+            }
             else if (Settings.GetBool("ReopenLast", false) && Program.Options.Shot == null)
             {
                 List<string[]> r = Settings.Recent();
@@ -785,8 +795,13 @@ namespace LogVice
                 {
                     bool all = true;
                     foreach (string p in r[0]) { if (!EventLogs.Available(p)) all = false; }
-                    if (all) OpenFiles(r[0], false, false);
+                    if (all) OpenAny(r[0], false);
                 }
+            }
+            if (st.Sources.Count == 0 && !loading)
+            {
+                Landing l = Landing.From(Program.Options);
+                if (l != null && l.Note != null) Note(l.Note);
             }
         }
 
@@ -907,6 +922,10 @@ namespace LogVice
                 case Keys.Escape:
                     if (viewKind == ViewKind.Logs && homeMode) { LeaveHome(); return true; }
                     break;
+                case Keys.Alt | Keys.Left: NavGo(false); return true;
+                case Keys.Alt | Keys.Right: NavGo(true); return true;
+                case Keys.Control | Keys.S: SaveSession(); return true;
+                case Keys.Control | Keys.Shift | Keys.C: CopyTicket(); return true;
                 case Keys.Control | Keys.G: GoToLine(); return true;
                 case Keys.F7: HlStep(1); return true;
                 case Keys.Shift | Keys.F7: HlStep(-1); return true;
@@ -952,6 +971,8 @@ namespace LogVice
 
         void ShowFollow(List<FollowItem> items, FollowResult r)
         {
+            RecordHistory();
+            skipHistory = true;
             suppress = true;
             try
             {
@@ -962,6 +983,7 @@ namespace LogVice
             ApplyFilterText();
             tFilter.Badge = "Following";
             OpenFiles(r.Files.ToArray(), false, false);
+            skipHistory = false;
             int channels = 0;
             foreach (string f in r.Files) if (EventLogs.IsChannel(f)) channels++;
             int logs = r.Files.Count - channels;
@@ -1136,7 +1158,7 @@ namespace LogVice
             string[] files = e.Data.GetData(DataFormats.FileDrop) as string[];
             if (files == null || files.Length == 0) return;
             bool merge = st.Sources.Count > 0 && !loading && ((e.KeyState & 8) != 0 || (drop.TwoZones && zone == 1));
-            OpenFiles(files, merge, false);
+            OpenAny(files, merge);
         }
 
         // ---------- loading ----------
@@ -1147,7 +1169,7 @@ namespace LogVice
             {
                 d.Multiselect = true;
                 d.Title = merge ? "Merge in log files" : "Open log files";
-                d.Filter = "Log files (*.log;*.lo_;*.etl;*.evtx)|*.log;*.lo_;*.etl;*.evtx|Text logs (*.log;*.lo_;*.txt)|*.log;*.lo_;*.txt|ETW traces (*.etl)|*.etl|Event logs (*.evtx)|*.evtx|All files (*.*)|*.*";
+                d.Filter = "Log files (*.log;*.lo_;*.etl;*.evtx;*.json;*.jsonl;*.ndjson)|*.log;*.lo_;*.etl;*.evtx;*.json;*.jsonl;*.ndjson|Text logs (*.log;*.lo_;*.txt)|*.log;*.lo_;*.txt|JSON logs (*.json;*.jsonl;*.ndjson)|*.json;*.jsonl;*.ndjson|ETW traces (*.etl)|*.etl|Event logs (*.evtx)|*.evtx|All files (*.*)|*.*";
                 string dir = folder ?? StartDir();
                 if (dir != null) d.InitialDirectory = dir;
                 if (d.ShowDialog(this) == DialogResult.OK) OpenFiles(d.FileNames, merge && st.Sources.Count > 0, false);
@@ -1183,6 +1205,10 @@ namespace LogVice
 
         void OpenFiles(string[] paths, bool merge, bool keep)
         {
+            Landing land = keep ? null : landing;
+            landing = null;
+            string recentSession = keep ? null : sessionRecent;
+            sessionRecent = null;
             if (!keep) demoMode = demoNext && !merge;
             demoNext = false;
             List<string> found = new List<string>();
@@ -1204,6 +1230,8 @@ namespace LogVice
                 if (merge) return;
                 if (loadTok != null) loadTok.State = 2;
             }
+            if (!keep && !skipHistory) RecordHistory();
+            skipHistory = false;
             tailTimer.Stop();
             Store target;
             if (merge && st.Sources.Count > 0) target = st;
@@ -1224,7 +1252,18 @@ namespace LogVice
                     bFrom.Visible = bTo.Visible = false;
                 }
                 selEntry = -1;
+                if (land != null)
+                {
+                    SessionFilter sf = land.State != null ? land.State.Filter : new SessionFilter();
+                    ApplyFilterState(sf, land.Errors, land.Filter);
+                }
             }
+            if (land != null)
+            {
+                afterView = delegate { Landed(land); };
+            }
+            else if (!keep) afterView = null;
+            if (!keep) sessionLoad = recentSession;
             reloading = keep;
             st = target;
             grid.Data = target;
@@ -1417,7 +1456,7 @@ namespace LogVice
             if (!reloading && !eggMode && !demoMode && ok.Count > 0)
             {
                 bool single = s.Sources.Count == ok.Count && partsAdded > 0 && chosenPaths != null && chosenPaths.Length + partsAdded == ok.Count;
-                Settings.AddRecent(single ? chosenPaths : ok.ToArray());
+                Settings.AddRecent(sessionLoad != null ? new string[] { sessionLoad } : single ? chosenPaths : ok.ToArray());
                 RefreshRecent();
             }
             StringBuilder notes = new StringBuilder();
@@ -1427,6 +1466,7 @@ namespace LogVice
                 if (src.Entries == 0 && src.Error == null) errs.Append(src.Note).Append("\r\n");
                 else notes.Append(src.Note).Append(". ");
             }
+            sessionLoad = null;
             reloading = false;
             grid.Busy = false;
             grid.MultiFile = s.Sources.Count > 1;
@@ -1647,6 +1687,9 @@ namespace LogVice
             SyncFilterUi();
             RebuildFind();
             UpdateStatus();
+            Action after = afterView;
+            afterView = null;
+            if (after != null) after();
         }
 
         void CatchUp(int from, bool live)
@@ -1806,6 +1849,7 @@ namespace LogVice
             int n = grid.SelHi - grid.SelLo + 1;
             rowMenu.Items.Add(Item(n > 1 ? string.Format("Copy {0:N0} rows", n) : "Copy row", "Ctrl+C", true, delegate { CopySelection(false); }));
             rowMenu.Items.Add(Item("Copy message text", "", true, delegate { CopySelection(true); }));
+            rowMenu.Items.Add(Item("Copy for ticket", "Ctrl+Shift+C", true, delegate { CopyTicket(); }));
             rowMenu.Items.Add(new ToolStripSeparator());
             int th = st.Thread[i];
             int ci = st.Comp[i];
@@ -2044,7 +2088,7 @@ namespace LogVice
             int p = CurPos();
             bool has = p >= 0;
             metaFlow.SuspendLayout();
-            foreach (FluentButton b in new FluentButton[] { aThread, aComp, aFrom, aTo, aCopy }) b.Enabled = has;
+            foreach (FluentButton b in new FluentButton[] { aThread, aComp, aFrom, aTo, aCopy, aTicket }) b.Enabled = has;
             if (!has)
             {
                 badge.Visible = false;
@@ -2328,19 +2372,10 @@ namespace LogVice
             {
                 if (f.ShowDialog(this) != DialogResult.OK) return;
                 int want = f.Value;
-                int best = -1, bestLine = int.MaxValue;
-                for (int p = 0; p < viewCount; p++)
-                {
-                    int i = view[p];
-                    if (st.Src[i] != src) continue;
-                    int ln = st.Line[i];
-                    if (ln == want) { best = p; break; }
-                    if (ln > want && ln < bestLine) { best = p; bestLine = ln; }
-                }
-                if (best < 0) { Note("Line " + want.ToString("N0") + " is past the end of " + name + " or hidden by filters."); return; }
-                SelectPos(best, 1);
+                int found = SelectLine(src, want);
+                if (found == 0) { Note("Line " + want.ToString("N0") + " is past the end of " + name + " or hidden by filters."); return; }
                 grid.Focus();
-                if (st.Line[view[best]] != want) Note("Line " + want.ToString("N0") + " has no entry of its own in this view. Showing the next one.");
+                if (found == 2) Note("Line " + want.ToString("N0") + " has no entry of its own in this view. Showing the next one.");
             }
         }
 

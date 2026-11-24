@@ -14,6 +14,13 @@ follow/IntuneManagementExtension-20261104-080000.log 3 cm D2C4757A7AD616F7
 follow/IntuneManagementExtension.log 2 cm E9B1E5DECC371D21
 follow/UpdatesDeployment.log 1 cm 1ABB70A456B5BB51
 follow/execmgr.log 1 cm 3C5300F2DDF5F6C4
+json/array-broken.json 3 json DB6A6AEE1FB4EC62
+json/array.json 3 json 46C3627EA33347DC
+json/badlines.jsonl 6 json E6C7B284BDD1FB4D
+json/brackets.txt 2 plain 9349EE1D9A851950
+json/lines.jsonl 7 json 0D96ED49A0C35AB5
+json/not-json.txt 2 plain B6BF62589C4A5792
+json/serilog.jsonl 4 json 66DB4668C88161C0
 plain.txt 4 plain 63C845D1D0F227E1
 sms.log 5 sms 4AFC4D2DACE411ED
 spans/AppEnforce-20261104-080000.log 3 cm AB0E3DB9FF85CFFE

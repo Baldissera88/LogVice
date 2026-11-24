@@ -1,0 +1,6 @@
+{"timestamp":"2026-11-24 08:30:00","level":"info","message":"first line is fine"}
+{"timestamp":"2026-11-24 08:30:01","level":"info","message":"second line is fine"}
+this line is not JSON at all
+{"timestamp":"2026-11-24 08:30:03","level":"warning","message":"fourth line is fine"}
+{"timestamp":"2026-11-24 08:30:04","level":"info","message":"cut off in the middle
+{"timestamp":"2026-11-24 08:30:05","level":"error","message":"last line is fine"}

@@ -15,14 +15,17 @@ namespace LogVice
         bool shotReady;
         Form shotPage;
         int shotWaited;
+        // Steps a screenshot page takes one after the other, each once the one before has finished loading.
+        readonly Queue<Action> shotQueue = new Queue<Action>();
 
         // Writes the demo logs and opens the ConfigMgr and Intune ones, merged by time.
         void OpenDemo()
         {
             string[] paths;
-            try { paths = Demo.CmPaths(Demo.Write()); }
+            try { paths = Demo.LookAround(Demo.Write()); }
             catch (Exception ex)
             {
+                landing = null;
                 Note("The demo logs could not be written: " + ex.Message);
                 return;
             }
@@ -60,6 +63,12 @@ namespace LogVice
                 shotTimer.Interval = 1500;
                 return;
             }
+            if (busy && shotWaited < 90000) return;
+            if (shotQueue.Count > 0)
+            {
+                shotQueue.Dequeue()();
+                return;
+            }
             shotTimer.Stop();
             try { ShotSave(); }
             catch (Exception ex) { Console.Error.WriteLine("Screenshot failed: " + ex.Message); }
@@ -73,7 +82,9 @@ namespace LogVice
             grid.Focus();
             string sel = Program.Options.Select;
             // A demo screenshot opens on the failed install, so the detail pane shows something worth reading.
-            if (sel == null && Program.Options.Demo) sel = "Unmatched exit code (1603)";
+            StartOptions so = Program.Options;
+            bool placed = so.Line > 0 || so.Time != Store.NoTime || so.Find != null || so.SessionPath != null;
+            if (sel == null && so.Demo && !placed) sel = "Unmatched exit code (1603)";
             if (!string.IsNullOrEmpty(sel) && viewKind == ViewKind.Logs)
             {
                 for (int p = 0; p < viewCount; p++)
@@ -95,6 +106,8 @@ namespace LogVice
                 if (page == "settings-" + SettingsCatalog.Updates) UpdatesUi.Demo = UpdatesUi.DemoInfo();
                 ShowShotPage(f, Program.Options.Select != "narrow");
             }
+            else if (page == "ticket") ShowShotPage(TicketPage(), true);
+            else if (page == "history") ShotHistory();
             else if (page == "whatsnew")
                 ShowShotPage(new NotesForm(theme, "What's new", "What's new in LogVice", "You have " + Program.Version + ". Every version is listed, newest first.", ReleaseNotes.Sections(ReleaseNotes.Changelog, null, Program.Version)), true);
             else if (page == "update") ShowShotPage(ShotUpdate(page), true);
@@ -102,6 +115,21 @@ namespace LogVice
             else if (page == "feedback" || page == "feature") ShowShotPage(ShotFeedback(page), true);
             // Keep the pointer out of the picture, so nothing shows as hovered.
             try { Cursor.Position = new Point(Screen.PrimaryScreen.Bounds.Right - 2, Screen.PrimaryScreen.Bounds.Bottom - 2); } catch (Exception) { }
+        }
+
+        // Opens two other logs and goes back once, so Back and Forward are both ready.
+        void ShotHistory()
+        {
+            string cas = null, enforce = null;
+            foreach (string p in OpenPaths())
+            {
+                if (Path.GetFileName(p) == "CAS.log") cas = p;
+                if (Path.GetFileName(p) == "AppEnforce.log") enforce = p;
+            }
+            if (cas == null || enforce == null) return;
+            shotQueue.Enqueue(delegate { OpenFiles(new string[] { cas }, false, false); });
+            shotQueue.Enqueue(delegate { OpenFiles(new string[] { enforce }, false, false); });
+            shotQueue.Enqueue(delegate { NavGo(false); });
         }
 
         List<LogLocation> DemoLocations()

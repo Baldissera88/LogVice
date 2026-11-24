@@ -27,7 +27,7 @@ $sources = @(
     'src\AssemblyInfo.cs', 'src\Core.cs', 'src\Logs.Locations.cs', 'src\Logs.Etl.cs', 'src\Logs.EventLog.cs',
     'src\Net.Remote.cs', 'src\Net.Update.cs', 'src\Logs.Follow.cs', 'src\Ui.Follow.cs', 'src\Ui.Base.cs', 'src\Ui.Controls.cs', 'src\Ui.Controls2.cs', 'src\Ui.Kit.cs', 'src\Ui.Pages.cs', 'src\Ui.Header.cs', 'src\Ui.Welcome.cs', 'src\Ui.About.cs', 'src\Ui.Menus.cs', 'src\NarrowFit.cs', 'src\Recent.cs',
     'src\Ui.Grid.cs', 'src\Ui.Browse.cs', 'src\Ui.Highlights.cs', 'src\Ui.Settings.cs', 'src\SettingsCatalog.cs', 'src\Ui.ThemePicker.cs', 'src\Feedback.cs', 'src\MailHandler.cs', 'src\Ui.Feedback.cs', 'src\Ui.Update.cs', 'src\Ui.MainForm.cs',
-    'src\Ui.Lookup.cs', 'src\Ui.Notes.cs', 'src\Ui.Updater.cs', 'src\Palettes.cs', 'src\Demo.cs', 'src\Ui.Shot.cs', 'src\Ui.ShotScale.cs', 'src\Program.cs'
+    'src\Ui.Lookup.cs', 'src\Ui.Notes.cs', 'src\Ui.Updater.cs', 'src\Palettes.cs', 'src\Demo.cs', 'src\Json.cs', 'src\Logs.Json.cs', 'src\Session.cs', 'src\Ticket.cs', 'src\Ui.Ticket.cs', 'src\Ui.Session.cs', 'src\Ui.Shot.cs', 'src\Ui.ShotScale.cs', 'src\Program.cs'
 )
 
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'

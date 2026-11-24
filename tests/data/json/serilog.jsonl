@@ -1,0 +1,4 @@
+{"@t":"2026-11-24T08:10:00.123","@mt":"Disk {Drive} has {Free} GB left","Drive":"C:","Free":11,"@l":"Warning","SourceContext":"Contoso.Disk"}
+{"@t":"2026-11-24T08:10:01.000","@m":"Sync finished: 12 items","@mt":"Sync finished: {Count} items","Count":12,"SourceContext":"Fabrikam.Sync"}
+{"@t":"2026-11-24T08:10:02.500","@mt":"User {User} signed in from {Site}","User":"avery","Site":"Woodgrove","SourceContext":"Woodgrove.Auth"}
+{"@t":"2026-11-24T08:10:03.000","@mt":"Cannot reach {Server}","Server":"dc01.contoso.example","@l":"Error","@x":"System.Net.Sockets.SocketException: timed out"}

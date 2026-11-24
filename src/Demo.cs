@@ -33,13 +33,22 @@ namespace LogVice
             return Write(Folder, DateTime.Today);
         }
 
-        // The CMTrace logs only, in the order of CmFiles. These are the ones --demo opens.
+        // The CMTrace logs only, in the order of CmFiles.
         public static string[] CmPaths(string[] all)
         {
             List<string> list = new List<string>();
             foreach (string f in CmFiles)
                 foreach (string p in all)
                     if (string.Equals(Path.GetFileName(p), f, StringComparison.OrdinalIgnoreCase)) list.Add(p);
+            return list.ToArray();
+        }
+
+        // What Look around and --demo open: the CMTrace logs and the JSON Lines log of the agent, merged by time.
+        public static string[] LookAround(string[] all)
+        {
+            List<string> list = new List<string>(CmPaths(all));
+            foreach (string p in all)
+                if (string.Equals(Path.GetFileName(p), JsonFile, StringComparison.OrdinalIgnoreCase)) list.Add(p);
             return list.ToArray();
         }
 

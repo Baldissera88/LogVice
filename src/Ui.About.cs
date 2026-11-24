@@ -89,6 +89,7 @@ namespace LogVice
             new string[] { "CBS, DISM and Panther", "CBS.log, DISM.log, setupact.log and setuperr.log." },
             new string[] { "ETW traces (.etl)", "Windows Update logs in C:\\Windows\\Logs\\WindowsUpdate and other ETL files, decoded with the event information Windows has on this computer. Open several WindowsUpdate*.etl files together to get the whole history in one view." },
             new string[] { "Windows event logs", "Live channels such as Application, System, Security and the Intune MDM, Entra, Autopilot and Windows Update logs, on this computer or on another one you connect to, and exported .evtx files. Errors and warnings are marked like in CMTrace, and live view picks up new events." },
+            new string[] { "JSON Lines", "Logs with one JSON object per line (also called NDJSON), and files that are one array of objects: .json, .jsonl and .ndjson. Time, level, message, source and thread are found by their usual names, such as timestamp, level, message and logger. Other fields show under the message in the detail pane." },
             new string[] { "Plain text", "Any other text log. Timestamps at the start of a line are used for sorting and merging. UTF-8, UTF-16 and ANSI are detected." }
         };
 
@@ -97,6 +98,9 @@ namespace LogVice
             new string[] { "Alt+Home", "Start page" },
             new string[] { "Ctrl+O", "Open log files" },
             new string[] { "Ctrl+Shift+O", "Merge in more log files, interleaved by time" },
+            new string[] { "Alt+Left / Alt+Right", "Back and Forward through the logs you had open. The mouse back and forward buttons do the same" },
+            new string[] { "Ctrl+S", "Save the open logs and filters as a session (.logvice file)" },
+            new string[] { "Ctrl+Shift+C", "Copy the selected rows for a ticket: plain text with the rows around a single row and the error codes in them" },
             new string[] { "Ctrl+B", "Browse logs on this computer or another one. Press it again to go back" },
             new string[] { "Ctrl+I", "Follow an item through every client log" },
             new string[] { "F5", "Read the open files again" },
@@ -122,10 +126,17 @@ namespace LogVice
             new string[] { "LogVice.exe <file> [<file> ...]", "Open log files. Several files are merged by time" },
             new string[] { "LogVice.exe \"C:\\Windows\\CCM\\Logs\\*.log\"", "A wildcard opens every file that matches, merged by time" },
             new string[] { "LogVice.exe evt:<channel>", "Open a Windows event log, such as evt:Application. Use evt:\\\\<computer>\\<channel> for another computer" },
-            new string[] { "--demo", "Open made-up ConfigMgr and Intune logs of CONTOSO-LT0417, merged by time. Nothing on this PC is read" },
+            new string[] { "LogVice.exe <file>.logvice", "Open a saved session: its logs, filters and search. Logs that are missing are named in the status bar" },
+            new string[] { "--line <n>", "Select line n of the first file. If the line has no entry of its own, the next entry is selected" },
+            new string[] { "--time \"yyyy-MM-dd HH:mm:ss[.fff]\"", "Select the first row at or after this time" },
+            new string[] { "--find <text>", "Search for the text, starting from the selected row. Use --line or --time to choose the row first" },
+            new string[] { "--filter <text>", "Only show rows that contain the text" },
+            new string[] { "--errors", "Only show errors and warnings" },
+            new string[] { "--demo", "Open made-up ConfigMgr, Intune and agent logs of CONTOSO-LT0417, merged by time. Nothing on this PC is read" },
             new string[] { "--theme <name>", "Use this theme for this run only: Light, Dark, Vice, Terminal, Amber or Synthwave. System follows Windows" },
+            new string[] { "Example", "LogVice.exe \"C:\\ProgramData\\Microsoft\\IntuneManagementExtension\\Logs\\AppWorkload.log\" --time \"2026-11-24 21:21:57\" --find \"Contoso Timesheet\" --theme vice" },
             new string[] { "--shot <file.png> [--size WxH]", "Save a picture of the window and exit. Nothing is saved in this run" },
-            new string[] { "--page <name> [--select <text>]", "With --shot: show a page: welcome, about, shortcuts or commandline. --select picks a row by its text" }
+            new string[] { "--page <name> [--select <text>]", "With --shot: show a page: welcome, about, shortcuts, commandline, ticket or history. --select picks a row by its text" }
         };
     }
 
@@ -156,6 +167,7 @@ namespace LogVice
                 cli = new KeyTable(true, HelpTexts.CommandLine);
                 Add(cli);
                 Add(new SettingRow(Glyph.Info, "Several files and wildcards", "Quote a path that has spaces. LogVice expands a wildcard itself, so it also works from a shortcut.", null));
+                Add(new SettingRow(Glyph.Info, "Landing on a row", "--line, --time, --find, --filter and --errors work with files, event logs and sessions, alone or together. LogVice ignores an option it does not know and says so in the status bar.", null));
             }
             else if (part == ShortcutsPart)
             {

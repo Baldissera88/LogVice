@@ -405,6 +405,7 @@ namespace LogVice
                 case "cbs": return "CBS / Panther";
                 case "etl": return "ETW trace (ETL)";
                 case "evt": return "Windows event log";
+                case JsonLogs.Id: return JsonLogs.Name;
                 default: return "Plain text";
             }
         }
@@ -412,6 +413,7 @@ namespace LogVice
         public static string Detect(string buf)
         {
             string s = buf.Length > 65536 ? buf.Substring(0, 65536) : buf;
+            if (JsonLogs.IsLines(s, buf.Length > 65536)) return JsonLogs.Id;
             if (s.IndexOf("<![LOG[", StringComparison.Ordinal) >= 0) return "cm";
             if (RxSms.IsMatch(s)) return "sms";
             int lines = 0, hits = 0, p = 0;
@@ -440,6 +442,7 @@ namespace LogVice
                 case "cm": carry = ParseCM(st, src, buf, fin); break;
                 case "sms": carry = ParseLines(st, src, buf, fin, 1); break;
                 case "cbs": carry = ParseLines(st, src, buf, fin, 2); break;
+                case JsonLogs.Id: carry = ParseLines(st, src, buf, fin, 3); break;
                 default: carry = ParseLines(st, src, buf, fin, 0); break;
             }
             At(src, buf, buf.Length - carry.Length);
@@ -647,6 +650,7 @@ namespace LogVice
         {
             if (kind == 1) SmsLine(st, src, line);
             else if (kind == 2) CbsLine(st, src, line);
+            else if (kind == 3) { if (!JsonLogs.Line(st, src, line) && !Blank(line)) PlainLine(st, src, line); }
             else PlainLine(st, src, line);
         }
 
@@ -665,7 +669,7 @@ namespace LogVice
             }
         }
 
-        static void PlainLine(Store st, LogSource src, string line)
+        public static void PlainLine(Store st, LogSource src, string line)
         {
             if (Blank(line)) return;
             long t = Store.NoTime;
@@ -880,6 +884,31 @@ namespace LogVice
             src.EncName = encName;
             fs.Position = bom;
             src.Dec = src.Enc.GetDecoder();
+            if (JsonLogs.StartsArray(src.Enc.GetString(head, bom, Math.Max(0, hn - bom))))
+            {
+                if (fs.Length >= JsonLogs.MaxArrayBytes)
+                {
+                    src.Format = "plain";
+                    src.Note = src.Name + " is a JSON array larger than 64 MB, so it is opened as plain text";
+                }
+                else
+                {
+                    byte[] all = new byte[fs.Length - bom];
+                    int got = 0;
+                    while (got < all.Length)
+                    {
+                        int r = fs.Read(all, got, all.Length - got);
+                        if (r <= 0) break;
+                        got += r;
+                    }
+                    src.Format = JsonLogs.Id;
+                    src.CurLine = 1;
+                    JsonLogs.Array(st, src, src.Enc.GetString(all, 0, got));
+                    src.Pos = fs.Position;
+                    progress(src.Pos);
+                    return;
+                }
+            }
             byte[] bb = new byte[4 << 20];
             char[] cb = new char[src.Enc.GetMaxCharCount(bb.Length)];
             string carry = "";

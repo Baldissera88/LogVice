@@ -156,7 +156,7 @@ namespace LogVice
         }
     }
 
-    // The command line of one run: the files to open and the options for demos and screenshots.
+    // The command line of one run: the files to open, where to land in them, and the options for demos and screenshots.
     public sealed class StartOptions
     {
         public string[] Paths = new string[0];
@@ -168,34 +168,115 @@ namespace LogVice
         // --page <name>, --select <text>, --scale <percent>: what a screenshot shows.
         public string Page, Select, Scale;
         public Size Size;
+        // --line <n>: the line of the first file to land on. 0 when not given.
+        public int Line;
+        // --time "<yyyy-MM-dd HH:mm:ss[.fff]>": land on the first row at or after this time. NoTime when not given.
+        public long Time = Store.NoTime;
+        // --find <text> and --filter <text>: search from the row it landed on, or only show the rows with this text.
+        public string Find, Filter;
+        // --errors: only errors and warnings.
+        public bool Errors;
+        // Options that were ignored, each with the reason. The window says so in its status bar.
+        public readonly List<string> Ignored = new List<string>();
+
+        static readonly string[] WithValue = { "--shot", "--theme", "--page", "--select", "--scale", "--size", "--line", "--time", "--find", "--filter" };
+        static readonly string[] TimeFormats =
+        {
+            "yyyy-MM-dd HH:mm:ss.fffffff", "yyyy-MM-dd HH:mm:ss.ffffff", "yyyy-MM-dd HH:mm:ss.fffff", "yyyy-MM-dd HH:mm:ss.ffff",
+            "yyyy-MM-dd HH:mm:ss.fff", "yyyy-MM-dd HH:mm:ss.ff", "yyyy-MM-dd HH:mm:ss.f", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm",
+            "yyyy-MM-dd'T'HH:mm:ss.fffffff", "yyyy-MM-dd'T'HH:mm:ss.ffffff", "yyyy-MM-dd'T'HH:mm:ss.fffff", "yyyy-MM-dd'T'HH:mm:ss.ffff",
+            "yyyy-MM-dd'T'HH:mm:ss.fff", "yyyy-MM-dd'T'HH:mm:ss.ff", "yyyy-MM-dd'T'HH:mm:ss.f", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm"
+        };
+
+        // The ticks of a time as written for --time, or NoTime when it cannot be read.
+        public static long ParseTime(string text)
+        {
+            DateTime d;
+            if (text != null && DateTime.TryParseExact(text.Trim(), TimeFormats, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out d)) return d.Ticks;
+            return Store.NoTime;
+        }
+
+        // A sentence for the status bar about the ignored options, or null.
+        public string IgnoredNote()
+        {
+            if (Ignored.Count == 0) return null;
+            return (Ignored.Count == 1 ? "Ignored this command line option: " : "Ignored these command line options: ") + string.Join("; ", Ignored.ToArray());
+        }
+
+        // The path of a saved session, when one was given.
+        public string SessionPath
+        {
+            get
+            {
+                foreach (string p in Paths) if (LogVice.Session.IsSessionFile(p)) return p;
+                return null;
+            }
+        }
 
         public static StartOptions Parse(string[] args)
         {
             StartOptions o = new StartOptions();
             List<string> rest = new List<string>();
-            args = args ?? new string[0];
+            args = Split(args ?? new string[0]);
             for (int i = 0; i < args.Length; i++)
             {
                 string a = args[i] ?? "";
                 string low = a.ToLowerInvariant();
                 bool more = i + 1 < args.Length;
                 if (low == "--demo") o.Demo = true;
+                else if (low == "--errors") o.Errors = true;
                 else if (low == "--shot" && more) o.Shot = args[++i];
                 else if (low == "--theme" && more) o.Theme = args[++i];
                 else if (low == "--page" && more) o.Page = args[++i];
                 else if (low == "--select" && more) o.Select = args[++i];
                 else if (low == "--scale" && more) o.Scale = args[++i];
+                else if (low == "--find" && more) o.Find = args[++i];
+                else if (low == "--filter" && more) o.Filter = args[++i];
                 else if (low == "--size" && more)
                 {
                     string[] wh = args[++i].ToLowerInvariant().Split('x');
                     int w, h;
                     if (wh.Length == 2 && int.TryParse(wh[0], out w) && int.TryParse(wh[1], out h) && w >= 200 && h >= 200) o.Size = new Size(w, h);
                 }
-                else if (low.StartsWith("--", StringComparison.Ordinal) && low.Length > 2) continue;
+                else if (low == "--line" && more)
+                {
+                    string v = args[++i];
+                    int n;
+                    if (int.TryParse(v, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out n) && n > 0) o.Line = n;
+                    else o.Ignored.Add("--line " + v + " (not a line number)");
+                }
+                else if (low == "--time" && more)
+                {
+                    string v = args[++i];
+                    o.Time = ParseTime(v);
+                    if (o.Time == Store.NoTime) o.Ignored.Add("--time \"" + v + "\" (use yyyy-MM-dd HH:mm:ss)");
+                }
+                else if (low.StartsWith("--", StringComparison.Ordinal) && low.Length > 2)
+                {
+                    if (Array.IndexOf(WithValue, low) >= 0) o.Ignored.Add(a + " (needs a value)");
+                    else o.Ignored.Add(a);
+                }
                 else rest.Add(a);
             }
             o.Paths = ExpandArgs(rest.ToArray());
             return o;
+        }
+
+        // --line=5 is the same as --line 5.
+        static string[] Split(string[] args)
+        {
+            List<string> list = new List<string>();
+            foreach (string a in args)
+            {
+                int eq = a == null || !a.StartsWith("--", StringComparison.Ordinal) ? -1 : a.IndexOf('=');
+                if (eq > 2 && Array.IndexOf(WithValue, a.Substring(0, eq).ToLowerInvariant()) >= 0)
+                {
+                    list.Add(a.Substring(0, eq));
+                    list.Add(a.Substring(eq + 1));
+                }
+                else list.Add(a);
+            }
+            return list.ToArray();
         }
 
         public static string[] ExpandArgs(string[] args)

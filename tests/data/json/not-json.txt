@@ -1,0 +1,2 @@
+{this is not JSON}
+{neither is this}

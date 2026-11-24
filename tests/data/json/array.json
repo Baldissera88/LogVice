@@ -1,0 +1,16 @@
+[
+  {
+    "time": "2026-11-24 08:20:00",
+    "level": "info",
+    "logger": "Contoso.Agent",
+    "message": "Started"
+  },
+  {
+    "time": "2026-11-24 08:20:05",
+    "level": "warning",
+    "logger": "Contoso.Agent",
+    "message": "Slow disk",
+    "ms": 912
+  },
+  { "time": "2026-11-24 08:20:09", "level": "error", "logger": "Contoso.Agent", "message": "Disk failed" }
+]

@@ -75,6 +75,16 @@ namespace LogVice.Tests
             FeedbackLinks();
             FeedbackMail();
             GridWidths();
+            JsonDetection();
+            JsonFields();
+            JsonLevelsAndTimes();
+            JsonBadLinesAndMerge();
+            SessionRoundTrip();
+            HistoryLimits();
+            TicketTexts();
+            CommandLineOptions();
+            HeaderWithSave();
+            Ellipsis();
 
             Console.WriteLine(failed == 0 ? "ALL TESTS PASSED" : failed + " TEST(S) FAILED");
             return failed == 0 ? 0 : 1;
@@ -475,7 +485,7 @@ namespace LogVice.Tests
             string[] stay = { "Back", "Forward", "Start", "Open", "Settings", "Help", "Stop" };
             bool kept = true;
             foreach (string n in stay) if (all.Contains(n)) kept = false;
-            Check(kept && all.Count == HeaderFold.FoldOrder.Length && all[0] == "Reload" && all[1] == "Lookup" && all[2] == "Follow" && all[3] == "Browse" && all[4] == "Live", "Back, Forward, Start, Open, Stop, Settings and Help never fold; Browse and Live fold last of the five");
+            Check(kept && all.Count == HeaderFold.FoldOrder.Length && all[0] == "Reload" && all[1] == "Lookup" && all[2] == "Follow" && all[3] == "Save" && all[4] == "Browse" && all[5] == "Live", "Back, Forward, Start, Open, Stop, Settings and Help never fold; Save, Browse and Live fold last");
             string[] few = { "Back", "Reload", "Help" };
             List<string> fewFolded = HeaderFold.Folded(few, new int[] { 50, 50, 50 }, 40, 100);
             Check(fewFolded.Count == 1 && fewFolded[0] == "Reload", "buttons that are not in the row are skipped when folding");

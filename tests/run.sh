@@ -5,6 +5,6 @@ API=/usr/lib/mono/4.5-api
 [ -f LogVice.exe ] || ./build.sh
 mcs -langversion:5 -nostdlib -noconfig -warnaserror+ \
   -r:$API/mscorlib.dll -r:$API/System.dll -r:$API/System.Core.dll -r:$API/System.Drawing.dll -r:$API/System.Windows.Forms.dll -r:LogVice.exe \
-  -out:tests/LogViceTests.exe tests/LogViceTests.cs tests/SettingsTests.cs
+  -out:tests/LogViceTests.exe tests/LogViceTests.cs tests/SettingsTests.cs tests/ExtrasTests.cs
 cp LogVice.exe tests/
 mono tests/LogViceTests.exe tests/data "$@"

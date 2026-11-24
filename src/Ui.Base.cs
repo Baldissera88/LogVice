@@ -565,6 +565,11 @@ namespace LogVice
                 return eb.ToString();
             }
             string dir = Path.GetDirectoryName(paths[0]) ?? "";
+            if (paths.Length == 1 && Session.IsSessionFile(paths[0]))
+            {
+                detail = "Session \u00b7 " + dir;
+                return Path.GetFileNameWithoutExtension(paths[0]);
+            }
             if (paths.Length == 1)
             {
                 detail = dir;
@@ -586,7 +591,7 @@ namespace LogVice
     {
         None, Open, Merge, Reload, Live, Lookup, Search, Filter, Up, Down, ErrUp, ErrDown, Copy, Moon, Sun, Close, Chevron, Recent, Folder, Stop, Check,
         Gear, Back, Computer, File, Server, Plus, Info, Browse, Palette, Text, Rows, Warning, Home, User, Highlight, Shield, Events,
-        Forward, Help, Pin, Keyboard, Code, More, Follow, Github
+        Forward, Help, Pin, Keyboard, Code, More, Follow, Github, Save, Session
     }
 
     public static class Draw
@@ -673,7 +678,35 @@ namespace LogVice
         public static void Text(Graphics g, string s, Font f, Rectangle r, Color c, TextFormatFlags flags)
         {
             if (string.IsNullOrEmpty(s) || r.Width <= 0 || r.Height <= 0) return;
+            if ((flags & TextFormatFlags.EndEllipsis) != 0 && (flags & TextFormatFlags.SingleLine) != 0) s = Ellipsis(s, f, r.Width);
             TextRenderer.DrawText(g, s, f, r, c, flags);
+        }
+
+        // The text cut with an ellipsis so that it fits in the width. The system only does this on some platforms, and a
+        // narrow column of the log list must never end in a hard cut.
+        public static string Ellipsis(string s, Font f, int width)
+        {
+            if (string.IsNullOrEmpty(s) || width <= 0) return s;
+            // A text this short cannot be wider than the room (no character is wider than the font is high): no need to measure it.
+            if (s.Length * f.Height <= width) return s;
+            return Ellipsis(s, width, delegate (string t) { return Measure(t, f).Width; });
+        }
+
+        // measure gives the width of a text. The text is cut at the longest start that fits with the ellipsis after it.
+        public static string Ellipsis(string s, int width, Func<string, int> measure)
+        {
+            if (string.IsNullOrEmpty(s) || width <= 0) return s;
+            if (measure(s) <= width) return s;
+            const string dots = "\u2026";
+            if (measure(dots) > width) return "";
+            int lo = 0, hi = s.Length - 1;
+            while (lo < hi)
+            {
+                int mid = (lo + hi + 1) / 2;
+                if (measure(s.Substring(0, mid).TrimEnd() + dots) <= width) lo = mid;
+                else hi = mid - 1;
+            }
+            return s.Substring(0, lo).TrimEnd() + dots;
         }
 
         public static void Severity(Graphics g, int sev, RectangleF r, Theme t)
@@ -974,6 +1007,16 @@ namespace LogVice
                         g.FillEllipse(b, 4f, 10.3f, 1.7f, 1.7f);
                         g.DrawLine(p, 7.4f, 8f, 11.8f, 8f);
                         g.DrawLine(p, 7.4f, 11.2f, 11.8f, 11.2f);
+                        break;
+                    case Glyph.Save:
+                        g.DrawPolygon(p, new PointF[] { P(2.4f, 2.4f), P(11f, 2.4f), P(13.6f, 5f), P(13.6f, 13.6f), P(2.4f, 13.6f) });
+                        g.DrawLines(p, new PointF[] { P(5f, 2.6f), P(5f, 5.6f), P(10f, 5.6f), P(10f, 2.6f) });
+                        g.DrawRectangle(p, 4.8f, 9f, 6.4f, 4.4f);
+                        break;
+                    case Glyph.Session:
+                        g.DrawLines(p, new PointF[] { P(9.6f, 1.6f), P(3.4f, 1.6f), P(3.4f, 14.4f), P(12.6f, 14.4f), P(12.6f, 4.6f), P(9.6f, 1.6f), P(9.6f, 4.6f), P(12.6f, 4.6f) });
+                        g.DrawLine(p, 6f, 8f, 10f, 8f);
+                        g.DrawLine(p, 6f, 10.6f, 10f, 10.6f);
                         break;
                     case Glyph.Forward:
                         g.DrawLine(p, 2.5f, 8f, 13.2f, 8f);

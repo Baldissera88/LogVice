@@ -34,6 +34,7 @@ namespace LogVice
             ContextMenuStrip m = Menus.New(theme);
             Menus.Add(m, "Open files\u2026", "Ctrl+O", delegate { PickFiles(false, null); });
             Menus.Add(m, "Merge in\u2026", "Ctrl+Shift+O", delegate { PickFiles(true, null); }).Enabled = st.Sources.Count > 0 && !loading;
+            Menus.Add(m, "Open session\u2026", delegate { PickSession(); });
             ToolStripMenuItem recent = Menus.Sub(m, "Recent files");
             StyleSub(recent, m);
             FillRecent(recent, m);
@@ -57,7 +58,7 @@ namespace LogVice
                 string[] paths = e.Paths;
                 string detail = e.Detail;
                 if (detail.Length > 48) detail = "\u2026" + detail.Substring(detail.Length - 47);
-                ToolStripMenuItem mi = Menus.Add(parent.DropDown, (e.Pinned ? "\u2022 " : "") + e.Label, detail, delegate { OpenFiles(paths, false, false); });
+                ToolStripMenuItem mi = Menus.Add(parent.DropDown, (e.Pinned ? "\u2022 " : "") + e.Label, detail, delegate { OpenAny(paths, false); });
                 mi.Enabled = exists;
                 mi.ToolTipText = string.Join("\r\n", paths);
             }
@@ -79,6 +80,13 @@ namespace LogVice
                 FlatButton button = b;
                 string text = string.IsNullOrEmpty(b.Text) ? "Theme" : b.Text;
                 string tip = tips.GetToolTip(b);
+                if (b.Name == HeaderFold.Save)
+                {
+                    ToolStripMenuItem save = Menus.Sub(m, "Save");
+                    StyleSub(save, m);
+                    FillSave(save.DropDown);
+                    continue;
+                }
                 ToolStripMenuItem mi = Menus.Add(m, text, delegate { button.PerformClick(); });
                 mi.Checked = b.Checked && b.Name == HeaderFold.Live;
                 mi.Enabled = b.Enabled;

@@ -1,0 +1,2 @@
+[INFO] starting up
+[ERROR] something failed
