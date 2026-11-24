@@ -6,7 +6,8 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 
 | Version | Highlights | Upgrade |
 |---|---|---|
-| **1.5.6** (latest) | Installing an update no longer hangs, with a window that shows each step | Run the MSI, or select Update in LogVice. It replaces Trace Lens and any earlier version |
+| **2.0.0** (latest) | New look with six themes, Settings, Help and updates like TrackVice, saved sessions with Back and Forward, Copy for ticket, open at a line from the command line, JSON Lines logs | Run the MSI, or select Update in LogVice. It replaces Trace Lens and any earlier version |
+| 1.5.6 | Installing an update no longer hangs, with a window that shows each step | |
 | 1.5.5 | Follow an item: Intune Store apps, remediations, scripts and installed apps, several items at once, Windows events in the timeline | |
 | 1.5.4 | New app icon, and an icon of its own for log files | |
 | 1.5.3 | What's new in the app, release notes in the Update dialog, winget manifests with every release | |
@@ -20,7 +21,55 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 | 1.2.x | New logo, developer named, Browse logs with automatic log discovery, Settings and About | |
 | 1.1.0 | Windows 11 style with light and dark themes | |
 
-![LogVice log view](docs/images/log-light.png)
+![LogVice in the Vice theme](docs/images/main-vice.png)
+
+## LogVice 2.0.0
+
+24 November 2026.
+
+LogVice 2.0.0 gets a new look and the same parts as TrackVice, and adds sessions, Copy for ticket, opening at a line and JSON Lines logs.
+
+| | |
+|---|---|
+| Product code | `{34EAA767-3B0B-4EAD-825C-7DB0C33F69FC}` |
+| Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (unchanged) |
+| Files | `LogVice.msi`, `LogVice.exe`, `SHA256SUMS.txt` |
+
+### New in 2.0.0
+
+- **New look**: LogVice now has the look of TrackVice.
+    - Six themes: Light, Dark, Vice, Terminal, Amber and Synthwave. System follows the Windows app mode. New installs start with Vice. If you used LogVice before, you keep the Light or Dark look you had.
+    - A header with the title, a line that says what is open, and one row of buttons: Back, Forward, Start, Open, Browse, Follow, Live, Save, Reload, Lookup, Theme, Settings and Help. In a narrow window the less used buttons move into a **More** menu.
+    - Counts for entries, errors, warnings and information sit above the log list. Select one to show or hide those rows. The find box is on the same row.
+    - The theme button cycles through the themes.
+    - A new start page with four cards: **Open a log**, **Browse logs**, **Follow an item** and **Look around**. Below them are your recent files, which you can search and pin, and the folders found on this PC.
+    - **Look around** opens made-up ConfigMgr, Intune and agent logs of a made-up laptop. Nothing on your PC is read.
+- **Settings**: one window with subjects on the left (General, Log list, Reading, Highlights, Folders, Updates, Data and privacy) and a search over all settings. A changed setting has a mark, and each page has **Reset**. Press Ctrl+, to open it.
+- **About and Help**: the Help menu (F1) has Welcome, What's new, Keyboard shortcuts, Command line, Report a problem, Suggest a feature, LogVice on GitHub and About. Keyboard shortcuts and Command line list everything LogVice understands.
+- **Updates**: a note in the status bar says when a new version is out, with **Install**. The Update dialog shows the release notes. LogVice does not check for updates, or install them, when it runs as SYSTEM, in Windows PE, in Windows setup or the Autopilot enrollment status page, or while a task sequence runs. The daily check and the policy **Turn off the update check** work as before.
+- **Report a problem and Suggest a feature**: a page shows exactly what is sent: the LogVice, Windows and .NET versions, the theme and the formats of the open logs. Paths, file names and log text are never added unless you type them. LogVice opens a GitHub issue with the text filled in, or copies it, or opens an e-mail.
+- **Sessions with Back and Forward**: **Save session** (Ctrl+S) writes the open logs, the filters, the search and the selected row to a `.logvice` file. Open it from the Open menu, the recent list, the command line or by dropping it on the window. Logs that are missing are named in the status bar, and the rest open.
+    - **Back** and **Forward** (Alt+Left, Alt+Right, or the mouse buttons) go through the sets of logs you had open. LogVice keeps the last 30.
+    - The MSI makes `.logvice` files open with LogVice.
+- **Copy for ticket**: Ctrl+Shift+C copies the selected rows as plain text for a ticket or an e-mail. With one row selected, you also get the 5 rows before and after it, and the selected row is marked with `>`. The text starts with the LogVice version, the computer, the logs and the filter, and ends with the error codes in the rows and what they mean. It copies at most 200 rows. Use it from the row menu, the detail pane or the Save menu.
+- **Open at a line from the command line**: `--line`, `--time`, `--find`, `--filter`, `--errors` and `--theme` open a log on the row you need. They work with files, event logs and sessions, alone or together. Another tool can call it, for example:
+    - `LogVice.exe "C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\AppWorkload.log" --time "2026-11-24 21:21:57" --find "Contoso Timesheet"`
+    - LogVice ignores an option it does not know, and says so in the status bar.
+- **JSON Lines**: LogVice reads JSON Lines (one object per line) and files that are an array of objects, such as `.json`, `.jsonl` and `.ndjson`. It finds the time, level, message, component and thread under the usual names. The message is shown in the list, and every other field is shown in the detail pane as `key: value`. A line that is not valid JSON stays in the list as plain text. JSON logs merge by time with the other logs.
+
+### Changed in 2.0.0
+
+- The command bar is gone. Every button it had is in the header, and every shortcut works as before.
+- Settings is a window you open from the header, not a view in the main window. The Light and Dark choice is now a theme picker with all themes.
+- The Update button is replaced by the note in the status bar.
+- Home is now called Start.
+- The hidden "type VICE" switch is gone, because Vice is now a theme you can pick.
+- The Open dialog has a **JSON logs** filter, and `*.json`, `*.jsonl` and `*.ndjson` are in the log files filter.
+
+### Fixed in 2.0.0
+
+- Text in a narrow column of the log list, such as Component, Log file or the find highlight, ends with an ellipsis instead of being cut off.
+- The detail pane keeps the whole message visible in a small window.
 
 ## LogVice 1.5.6
 
@@ -322,13 +371,14 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 
 | Package | How to upgrade from an earlier version |
 | --- | --- |
-| LogVice.msi | Run the 1.5.6 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
+| LogVice.msi | Run the 2.0.0 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
 | LogVice.exe (portable) | Delete TraceLens.exe and use LogVice.exe. Your settings are copied on first start |
 
 | MSI setting | Value |
 | --- | --- |
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {3287F79C-BE69-4FF5-823D-564678B829C3} /qn` |
+| Uninstall command | `msiexec /x {34EAA767-3B0B-4EAD-825C-7DB0C33F69FC} /qn` |
+| Product code (2.0.0) | `{34EAA767-3B0B-4EAD-825C-7DB0C33F69FC}` |
 | Product code (1.5.6) | `{3287F79C-BE69-4FF5-823D-564678B829C3}` |
 | Product code (1.5.5) | `{BC1C2600-3FA3-4AA7-8AF7-576F60674AB7}` |
 | Product code (1.5.4) | `{A9263E20-7EF1-4668-898D-60331A11E33D}` |
@@ -349,7 +399,7 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 | Install context | System, per machine |
 | Restart | Not needed |
 
-In Intune or ConfigMgr, add 1.5.6 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
+In Intune or ConfigMgr, add 2.0.0 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
 
 ## Known limitations
 

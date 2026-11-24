@@ -144,8 +144,18 @@ namespace LogVice
             LayoutBottom();
         }
 
+        // Made-up items for a screenshot: they are listed instead of reading this computer.
+        public static List<FollowItem> DemoItems;
+
         new void Load()
         {
+            if (DemoItems != null)
+            {
+                all = DemoItems;
+                Fill();
+                SetBusy(false, Count(all.Count) + ".");
+                return;
+            }
             string where = computer != null ? " on " + computer : "";
             SetBusy(true, "Reading the client logs" + where + "\u2026");
             string pc = computer;

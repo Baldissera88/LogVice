@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="3287F79C-BE69-4FF5-823D-564678B829C3"
+  <Product Id="34EAA767-3B0B-4EAD-825C-7DB0C33F69FC"
            Name="LogVice"
            Language="1033"
            Codepage="1252"
-           Version="1.5.6"
+           Version="2.0.0"
            Manufacturer="Daniel L. Baldissera"
            UpgradeCode="2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3">
 
@@ -33,7 +33,7 @@
         <Directory Id="INSTALLDIR" Name="LogVice">
 
           <Component Id="LogViceExe" Guid="A8137363-CC1A-43A5-ADB4-612F6292C370" Win64="yes">
-            <File Id="LogViceExe" Name="LogVice.exe" Source="LogVice.exe" KeyPath="yes" DefaultVersion="1.5.6.0">
+            <File Id="LogViceExe" Name="LogVice.exe" Source="LogVice.exe" KeyPath="yes" DefaultVersion="2.0.0.0">
               <Shortcut Id="StartMenuShortcut"
                         Directory="ProgramMenuFolder"
                         Name="LogVice"
@@ -52,6 +52,11 @@
             <RegistryValue Root="HKLM" Key="Software\Classes\LogVice.LogFile" Type="string" Value="Log file" />
             <RegistryValue Root="HKLM" Key="Software\Classes\LogVice.LogFile\DefaultIcon" Type="string" Value="[INSTALLDIR]LogFile.ico" />
             <RegistryValue Root="HKLM" Key="Software\Classes\LogVice.LogFile\shell\open\command" Type="string" Value="&quot;[INSTALLDIR]LogVice.exe&quot; &quot;%1&quot;" />
+            <RegistryValue Root="HKLM" Key="Software\Classes\LogVice.Session" Type="string" Value="LogVice session" />
+            <RegistryValue Root="HKLM" Key="Software\Classes\LogVice.Session\DefaultIcon" Type="string" Value="[INSTALLDIR]LogVice.exe,0" />
+            <RegistryValue Root="HKLM" Key="Software\Classes\LogVice.Session\shell\open\command" Type="string" Value="&quot;[INSTALLDIR]LogVice.exe&quot; &quot;%1&quot;" />
+            <RegistryValue Root="HKLM" Key="Software\Classes\.logvice" Type="string" Value="LogVice.Session" />
+            <RegistryValue Root="HKLM" Key="Software\Classes\.logvice" Name="Content Type" Type="string" Value="application/json" />
             <RegistryValue Root="HKLM" Key="Software\Classes\.log\OpenWithProgids" Name="LogVice.LogFile" Type="string" Value="" />
             <RegistryValue Root="HKLM" Key="Software\Classes\.lo_\OpenWithProgids" Name="LogVice.LogFile" Type="string" Value="" />
             <RegistryValue Root="HKLM" Key="Software\Classes\.etl\OpenWithProgids" Name="LogVice.LogFile" Type="string" Value="" />

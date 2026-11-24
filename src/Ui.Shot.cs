@@ -106,6 +106,21 @@ namespace LogVice
                 if (page == "settings-" + SettingsCatalog.Updates) UpdatesUi.Demo = UpdatesUi.DemoInfo();
                 ShowShotPage(f, Program.Options.Select != "narrow");
             }
+            else if (page == "browse")
+            {
+                // The first folder is the folder of the made-up logs, so its list has files.
+                localLocations = DemoLocations();
+                try
+                {
+                    string[] all = Demo.Write();
+                    localLocations[0].Path = Path.GetDirectoryName(all[0]);
+                    localLocations[0].FileCount = Directory.GetFiles(localLocations[0].Path, "*.log").Length;
+                }
+                catch (Exception) { }
+                OpenBrowse(localLocations[0]);
+            }
+            else if (page == "follow") ShowShotPage(ShotFollow(), true);
+            else if (page == "lookup") ShowShotPage(ShotLookup(), true);
             else if (page == "ticket") ShowShotPage(TicketPage(), true);
             else if (page == "history") ShotHistory();
             else if (page == "whatsnew")
@@ -115,6 +130,39 @@ namespace LogVice
             else if (page == "feedback" || page == "feature") ShowShotPage(ShotFeedback(page), true);
             // Keep the pointer out of the picture, so nothing shows as hovered.
             try { Cursor.Position = new Point(Screen.PrimaryScreen.Bounds.Right - 2, Screen.PrimaryScreen.Bounds.Bottom - 2); } catch (Exception) { }
+        }
+
+        static FollowItem Item(string kind, string name, string id, string state, string note)
+        {
+            FollowItem it = new FollowItem();
+            it.Kind = kind; it.Name = name; it.Id = id; it.State = state; it.Note = note;
+            it.Terms.Add(id);
+            return it;
+        }
+
+        Form ShotFollow()
+        {
+            List<FollowItem> items = new List<FollowItem>();
+            items.Add(Item("Application", "Contoso Timesheet 4.2", "ScopeId_8B1F6A2C-4D3E-4F50-9A6B-7C8D9E0F1A2B/Application_5c1e9d0a", "Failed", "ConfigMgr client"));
+            items.Add(Item("Intune Win32 app", "Fabrikam PDF Reader 11", "e1bdab12-2e72-4351-bf06-908c6a2b7d11", "Installed", "Intune Management Extension"));
+            items.Add(Item("Intune Win32 app", "Woodgrove VPN Client 5.3", "3f6b2a47-9c1d-4e58-b0a2-61d7c4e90f33", "Required", "Intune Management Extension"));
+            items.Add(Item("Software update", "2026-10 Cumulative Update for Windows 11 (KB5044285)", "KB5044285", "Failed", "0x87D00324"));
+            items.Add(Item("Package", "Northwind Inventory Agent 3.1", "CON00142", "Installed", "ConfigMgr client"));
+            items.Add(Item("Remediation", "Contoso disk cleanup", "7a9d2c11-5e04-4b8f-8d2a-0c3e6f1b94aa", "Detected, fixed", "Intune Management Extension"));
+            items.Add(Item("Platform script", "Platform script 4d1f0c2e", "4d1f0c2e-8a6b-4c3d-9e7f-1b2a3c4d5e6f", "Success", "Intune Management Extension"));
+            items.Add(Item("Installed app", "Microsoft Visual C++ 2022 Redistributable (x64)", "{8A3E5C9F-1B2D-4F60-A7C8-3D9E0B1F2A45}", "14.38.33135", "Apps & features"));
+            FollowForm.DemoItems = items;
+            FollowForm f = new FollowForm(null);
+            f.ApplyTheme(theme);
+            return f;
+        }
+
+        Form ShotLookup()
+        {
+            LookupForm f = new LookupForm();
+            f.ApplyTheme(theme);
+            f.SetCode("0x87D00324");
+            return f;
         }
 
         // Opens two other logs and goes back once, so Back and Forward are both ready.

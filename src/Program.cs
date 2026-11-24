@@ -8,7 +8,7 @@ namespace LogVice
 
     public static class Program
     {
-        public const string BuildDate = "6 November 2026";
+        public const string BuildDate = "24 November 2026";
         public const string Developer = "Daniel L. Baldissera";
         public static string ScriptPath;
 
