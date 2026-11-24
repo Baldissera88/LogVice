@@ -82,6 +82,11 @@ namespace LogVice.Tests
             Check(st.Sev[5] == 3 && st.CompNames[st.Comp[5]] == "Contoso.Agent" && st.Time[5] == new DateTime(2026, 11, 24, 8, 0, 6).Ticks, "eventTime and app are found, and a message without a level uses the keyword rule");
             Check(st.Sev[6] == 3 && st.Thread[6] == -1 && st.Msg[6] == "Agent stopped\nthread: worker-2" && st.Time[6] == new DateTime(2026, 11, 24, 8, 0, 7).Ticks, "date is a time, crit is an error, and a thread that is not a number stays a field");
             Check(st.Line[0] == 1 && st.Line[6] == 7, "JSON Lines keep their line numbers");
+            Check(Fmt.Display(st.Msg[0], true) == "Heartbeat sent" && Fmt.Display(st.Msg[0]).EndsWith("\u21b5", StringComparison.Ordinal), "extra JSON fields do not get the multi-line mark in the list");
+            TicketInput jt = new TicketInput();
+            jt.Store = st; jt.Rows = new int[] { 0, 1 }; jt.Marked = -1; jt.Now = new DateTime(2026, 11, 24, 21, 40, 15); jt.Version = "2.0.0";
+            string jtext = Ticket.Build(jt);
+            Check(jtext.Contains("Heartbeat sent") && !jtext.Contains("CONTOSO-LT0417") && !jtext.Contains("attempt: 1"), "Copy for ticket puts only the message of a JSON row on the line");
 
             Store s2 = Load(JsonData("serilog.jsonl"));
             Check(s2.Count == 4 && s2.Msg[0] == "Disk C: has 11 GB left\nDrive: C:\nFree: 11" && s2.Sev[0] == 2 && s2.CompNames[s2.Comp[0]] == "Contoso.Disk" && s2.Time[0] == new DateTime(2026, 11, 24, 8, 10, 0, 123).Ticks, "@mt is filled in with the values of the object");

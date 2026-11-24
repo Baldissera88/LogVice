@@ -39,11 +39,17 @@ namespace LogVice
 
         public static string Display(string m)
         {
+            return Display(m, false);
+        }
+
+        // For JSON Lines rows everything after the first line is extra fields, not more lines of the message.
+        public static string Display(string m, bool fields)
+        {
             int nl = m.IndexOf('\n');
             string s = nl >= 0 ? m.Substring(0, nl).TrimEnd('\r') : m;
             if (s.IndexOf('\t') >= 0) s = s.Replace("\t", "    ");
             if (s.Length > 400) s = s.Substring(0, 400);
-            if (nl >= 0) s += "  ↵";
+            if (nl >= 0 && !fields) s += "  ↵";
             return s;
         }
     }
@@ -411,10 +417,10 @@ namespace LogVice
                 int ln = i < Data.Line.Length ? Data.Line[i] : 0;
                 if (ln > 0) Draw.Text(g, ln.ToString(CultureInfo.InvariantCulture), Fonts.Mono, new Rectangle(c.Line, y, c.LineW - Dpi.S(4), rowH), theme.Text3, Draw.Line | TextFormatFlags.Right);
             }
-            string msg = Fmt.Display(Data.Msg[i]);
+            string msg = Fmt.Display(Data.Msg[i], Data.Sources[Data.Src[i]].Format == JsonLogs.Id);
             Rectangle mr = new Rectangle(c.Msg + pad, y, c.MsgW - pad * 2, rowH);
             bool hit = Hits != null && Highlight != null && i < Hits.Length && Hits[i] != 0;
-            if (hit) PaintHighlighted(g, msg, mr);
+            if (hit) PaintHighlighted(g, Draw.Ellipsis(msg, Fonts.Mono, mr.Width), mr);
             else Draw.Text(g, msg, Fonts.Mono, mr, theme.Text, Draw.Line);
             int ci = Data.Comp[i];
             if (ci >= 0) Draw.Text(g, Data.CompNames[ci], Fonts.Ui, new Rectangle(c.Comp + pad, y, c.W[0] - pad * 2, rowH), theme.Text2, Draw.Line);

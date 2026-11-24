@@ -233,6 +233,8 @@ namespace LogVice
                     line.Append(t.PadRight(thrW)).Append("  ");
                 }
                 string[] parts = st.Msg[i].Replace("\r\n", "\n").Split('\n');
+                // A JSON row: only the message goes on the ticket line, not the extra fields.
+                if (parts.Length > 1 && st.Sources[st.Src[i]].Format == JsonLogs.Id) parts = new string[] { parts[0] };
                 string indent = new string(' ', line.Length);
                 line.Append(parts[0].Replace("\t", " ").Trim());
                 for (int k = 1; k < parts.Length; k++)
