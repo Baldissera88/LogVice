@@ -6,7 +6,7 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 
 | Version | Highlights | Upgrade |
 |---|---|---|
-| **2.0.0** (latest) | New look with six themes, Settings, Help and updates like TrackVice, saved sessions with Back and Forward, Copy for ticket, open at a line from the command line, JSON Lines logs | Run the MSI, or select Update in LogVice. It replaces Trace Lens and any earlier version |
+| **2.0.0** (latest) | New look with six themes, Settings, Help and updates like TrackVice, saved sessions with Back and Forward, Copy for ticket, open at a line from the command line, JSON Lines logs | Run the MSI, or select Install in the status bar when LogVice says a new version is out. It replaces Trace Lens and any earlier version |
 | 1.5.6 | Installing an update no longer hangs, with a window that shows each step | |
 | 1.5.5 | Follow an item: Intune Store apps, remediations, scripts and installed apps, several items at once, Windows events in the timeline | |
 | 1.5.4 | New app icon, and an icon of its own for log files | |

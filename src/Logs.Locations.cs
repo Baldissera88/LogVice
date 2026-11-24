@@ -25,7 +25,7 @@ namespace LogVice
         {
             get
             {
-                if (Kind != "evt") return Path;
+                if (Kind != "evt") return Demo.Show(Path);
                 string w = All ? "Every event log channel with events" : "Application, System, Security, Intune MDM, Entra, Autopilot, Windows Update and more";
                 return Computer != null ? w + " on " + Computer : w;
             }

@@ -27,6 +27,24 @@ namespace LogVice
             get { return Path.Combine(Path.GetTempPath(), "LogVice-demo"); }
         }
 
+        public const string WindowsFolder = "C:\\Users\\Admin\\AppData\\Local\\Temp\\LogVice-demo";
+
+        // A path as it is shown. In a screenshot run, the demo folder is shown as it would look on Windows.
+        public static string Show(string path)
+        {
+            return Map(path, Program.Options != null && Program.Options.Shot != null, Folder);
+        }
+
+        public static string Map(string path, bool shot, string folder)
+        {
+            if (!shot || string.IsNullOrEmpty(path) || string.IsNullOrEmpty(folder)) return path;
+            string f = folder.TrimEnd('/', '\\');
+            if (!path.StartsWith(f, StringComparison.Ordinal)) return path;
+            string rest = path.Substring(f.Length);
+            if (rest.Length > 0 && rest[0] != '/' && rest[0] != '\\') return path;
+            return WindowsFolder + rest.Replace('/', '\\');
+        }
+
         // Writes the logs for today into %TEMP%\LogVice-demo and returns every path.
         public static string[] Write()
         {

@@ -65,6 +65,7 @@ namespace LogVice.Tests
             SavedThemeName();
             PalettesComplete();
             DemoLogs();
+            DemoPathDisplay();
             HeaderFoldOrder();
             RecentPins();
             HeaderSubtitles();
@@ -533,6 +534,15 @@ namespace LogVice.Tests
             Check(many == "AppEnforce.log + 3 more \u00b7 merged by time \u00b7 " + dir, "the subtitle of several logs says how many more, that they are merged by time, and the folder");
             Check(HeaderText.Subtitle(false, "X", new string[] { "evt:Application" }) == "Event log: Application", "the subtitle of an event log names the channel");
             Check(HeaderText.Subtitle(false, "X", new string[] { "evt:Application", "evt:System" }) == "Event logs: Application + 1 more \u00b7 merged by time", "the subtitle of several event logs says how many more");
+        }
+
+        static void DemoPathDisplay()
+        {
+            string f = "/tmp/LogVice-demo";
+            Check(Demo.Map("/tmp/LogVice-demo/AppEnforce.log", true, f) == @"C:\Users\Admin\AppData\Local\Temp\LogVice-demo\AppEnforce.log", "in a screenshot run the demo folder is shown as a Windows path");
+            Check(Demo.Map("/tmp/LogVice-demo", true, f + "/") == @"C:\Users\Admin\AppData\Local\Temp\LogVice-demo", "the demo folder itself is mapped, also with a trailing slash");
+            Check(Demo.Map("/tmp/LogVice-demo/AppEnforce.log", false, f) == "/tmp/LogVice-demo/AppEnforce.log", "a normal run shows the path as it is");
+            Check(Demo.Map("/tmp/LogVice-demo2/a.log", true, f) == "/tmp/LogVice-demo2/a.log" && Demo.Map(@"C:\Windows\CCM\Logs\a.log", true, f) == @"C:\Windows\CCM\Logs\a.log" && Demo.Map(null, true, f) == null, "other paths are not changed");
         }
 
         static void DemoLogs()

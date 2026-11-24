@@ -244,7 +244,7 @@ namespace LogVice
                 return "Event logs: " + name + rest + " \u00b7 merged by time";
             }
             string dir = "";
-            try { dir = System.IO.Path.GetDirectoryName(first) ?? ""; } catch (Exception) { }
+            try { dir = Demo.Show(System.IO.Path.GetDirectoryName(first) ?? ""); } catch (Exception) { }
             string text = System.IO.Path.GetFileName(first) + rest;
             if (more > 0) text += " \u00b7 merged by time";
             if (dir.Length > 0) text += " \u00b7 " + dir;

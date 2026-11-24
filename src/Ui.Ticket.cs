@@ -15,10 +15,11 @@ namespace LogVice
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
             Box.Multiline = true;
             Box.ReadOnly = true;
-            Box.WordWrap = true;
-            Box.ScrollBars = ScrollBars.Vertical;
+            // No wrapping: the columns line up as they do in the copied text, and a long row scrolls sideways.
+            Box.WordWrap = false;
+            Box.ScrollBars = ScrollBars.Both;
             Box.BorderStyle = BorderStyle.None;
-            Box.Font = Fonts.Mono;
+            Box.Font = new Font(Fonts.Mono.FontFamily, Fonts.Mono.Size * 0.9f, Fonts.Mono.Style);
             Box.Text = text;
             Box.Select(0, 0);
             Controls.Add(Box);
@@ -31,7 +32,8 @@ namespace LogVice
 
         public int Measure(int width)
         {
-            int h = Draw.WrapHeight(Box.Text.Replace("\r\n", "\n"), Fonts.Mono, TextW(width)) + Fonts.Mono.Height;
+            int lines = Box.Text.Split('\n').Length;
+            int h = lines * Box.Font.Height + Box.Font.Height * 2;
             return Math.Max(Dpi.S(120), Math.Min(Dpi.S(430), h + Dpi.S(28)));
         }
 
@@ -66,7 +68,7 @@ namespace LogVice
         public TicketForm(Theme t, string text, int rows, int codes) : base("Copy for ticket", t)
         {
             this.text = text;
-            Size = new Size(Dpi.S(1000), Dpi.S(720));
+            Size = new Size(Dpi.S(1240), Dpi.S(720));
             Add(new SectionTitle("Copy for ticket"));
             string what = rows == 1 ? "1 row" : rows.ToString("N0") + " rows";
             string more = codes == 0 ? "" : codes == 1 ? " and the error code in it" : " and the " + codes + " error codes in them";

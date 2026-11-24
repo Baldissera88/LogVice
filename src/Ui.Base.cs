@@ -564,7 +564,7 @@ namespace LogVice
                 detail = paths.Length + " logs merged";
                 return eb.ToString();
             }
-            string dir = Path.GetDirectoryName(paths[0]) ?? "";
+            string dir = Demo.Show(Path.GetDirectoryName(paths[0]) ?? "");
             if (paths.Length == 1 && Session.IsSessionFile(paths[0]))
             {
                 detail = "Session \u00b7 " + dir;

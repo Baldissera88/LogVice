@@ -412,7 +412,7 @@ namespace LogVice
             if (l == null) return;
             int g = ++gen;
             locTitle.Text = l.Group + "  ·  " + l.Name;
-            locTitle.Sub = l.Kind == "evt" ? l.Where : l.Path + (l.Pattern != "*.log;*.lo_" ? "   (" + l.Pattern.Replace(";", ", ") + ")" : "");
+            locTitle.Sub = l.Kind == "evt" ? l.Where : Demo.Show(l.Path) + (l.Pattern != "*.log;*.lo_" ? "   (" + l.Pattern.Replace(";", ", ") + ")" : "");
             locTitle.Invalidate();
             files.SetFiles(null);
             files.EmptyText = l.Kind == "evt" ? "Reading the event log list…" : "Reading the folder…";

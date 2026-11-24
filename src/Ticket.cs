@@ -174,7 +174,7 @@ namespace LogVice
         static string LogName(string path)
         {
             if (EventLogs.IsChannel(path)) return "Event log " + EventLogs.DisplayName(path);
-            return path;
+            return Demo.Show(path);
         }
 
         static string Level(byte sev)
