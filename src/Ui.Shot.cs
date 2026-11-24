@@ -68,6 +68,9 @@ namespace LogVice
 
         void ShotSetup()
         {
+            // Mono draws a text cursor in the read-only message box while it keeps its selection visible; a picture shows none.
+            tMsg.HideSelection = true;
+            grid.Focus();
             string sel = Program.Options.Select;
             // A demo screenshot opens on the failed install, so the detail pane shows something worth reading.
             if (sel == null && Program.Options.Demo) sel = "Unmatched exit code (1603)";
@@ -82,21 +85,67 @@ namespace LogVice
                     }
                 }
             }
-            // The settings page of this version is a view in the window. A later version replaces it with a dialog.
             string page = Program.Options.Page;
-            if (page == "settings") OpenSettings(0);
-            else if (page == "welcome") { ShotWelcomeData(); ShowWelcome(); }
+            if (page == "welcome") { ShotWelcomeData(); ShowWelcome(); }
             else if (page == AboutForm.AboutPart || page == AboutForm.ShortcutsPart || page == AboutForm.CommandLinePart)
+                ShowShotPage(MakeAbout(page), true);
+            else if (SettingsDialog.IsShotPage(page))
             {
-                shotPage = MakeAbout(page);
-                shotPage.StartPosition = FormStartPosition.Manual;
-                shotPage.Location = new Point(Left + Dpi.S(40), Top + Dpi.S(30));
-                if (!Program.Options.Size.IsEmpty) shotPage.Size = new Size(Math.Min(Dpi.S(900), Width - Dpi.S(80)), Math.Min(Dpi.S(760), Height - Dpi.S(60)));
-                shotPage.Show(this);
-                Application.DoEvents();
+                Form f = SettingsDialog.ForShot(theme, page, Program.Options.Select, DemoLocations());
+                if (page == "settings-" + SettingsCatalog.Updates) UpdatesUi.Demo = UpdatesUi.DemoInfo();
+                ShowShotPage(f, Program.Options.Select != "narrow");
             }
+            else if (page == "whatsnew")
+                ShowShotPage(new NotesForm(theme, "What's new", "What's new in LogVice", "You have " + Program.Version + ". Every version is listed, newest first.", ReleaseNotes.Sections(ReleaseNotes.Changelog, null, Program.Version)), true);
+            else if (page == "update") ShowShotPage(ShotUpdate(page), true);
+            else if (page == "update-note") ShotUpdate(page);
+            else if (page == "feedback" || page == "feature") ShowShotPage(ShotFeedback(page), true);
             // Keep the pointer out of the picture, so nothing shows as hovered.
             try { Cursor.Position = new Point(Screen.PrimaryScreen.Bounds.Right - 2, Screen.PrimaryScreen.Bounds.Bottom - 2); } catch (Exception) { }
+        }
+
+        List<LogLocation> DemoLocations()
+        {
+            List<LogLocation> locs = new List<LogLocation>();
+            string[][] rows =
+            {
+                new string[] { "Client logs", LogLocations.ConfigMgr, @"C:\Windows\CCM\Logs", "42" },
+                new string[] { "Intune Management Extension", LogLocations.Intune, @"C:\ProgramData\Microsoft\IntuneManagementExtension\Logs", "9" },
+                new string[] { "Windows Update", LogLocations.Windows, @"C:\Windows\Logs\WindowsUpdate", "17" },
+                new string[] { "Windows", LogLocations.Windows, @"C:\Windows\Logs\CBS", "6" }
+            };
+            foreach (string[] r in rows)
+            {
+                LogLocation l = new LogLocation();
+                l.Name = r[0];
+                l.Group = r[1];
+                l.Path = r[2];
+                l.FileCount = int.Parse(r[3]);
+                l.Newest = DateTime.Now.AddMinutes(-12);
+                l.Glyph = Glyph.Folder;
+                locs.Add(l);
+            }
+            LogLocation mine = new LogLocation();
+            mine.Name = "Collected logs";
+            mine.Group = LogLocations.Yours;
+            mine.Path = @"\\fileserver\logs\CONTOSO-LT0417";
+            mine.FileCount = 24;
+            mine.Newest = DateTime.Now.AddHours(-3);
+            mine.Glyph = Glyph.Folder;
+            mine.Custom = true;
+            locs.Add(mine);
+            return locs;
+        }
+
+        void ShowShotPage(Form f, bool fit)
+        {
+            if (f == null) return;
+            shotPage = f;
+            f.StartPosition = FormStartPosition.Manual;
+            f.Location = new Point(Left + Dpi.S(40), Top + Dpi.S(30));
+            if (fit && !Program.Options.Size.IsEmpty) f.Size = new Size(Math.Min(f.Width, Width - Dpi.S(80)), Math.Min(f.Height, Height - Dpi.S(60)));
+            f.Show(this);
+            Application.DoEvents();
         }
 
         // The start page of a screenshot lists made-up recent entries and folders, so it shows what a used page looks like.
@@ -123,25 +172,7 @@ namespace LogVice
                 start.SetRecent(list);
             }
             catch (Exception) { }
-            List<LogLocation> locs = new List<LogLocation>();
-            string[][] rows =
-            {
-                new string[] { "Client logs", LogLocations.ConfigMgr, @"C:\Windows\CCM\Logs", "42" },
-                new string[] { "Intune Management Extension", LogLocations.Intune, @"C:\ProgramData\Microsoft\IntuneManagementExtension\Logs", "9" },
-                new string[] { "Windows Update", LogLocations.Windows, @"C:\Windows\Logs\WindowsUpdate", "17" },
-                new string[] { "Windows", LogLocations.Windows, @"C:\Windows\Logs\CBS", "6" }
-            };
-            foreach (string[] r in rows)
-            {
-                LogLocation l = new LogLocation();
-                l.Name = r[0];
-                l.Group = r[1];
-                l.Path = r[2];
-                l.FileCount = int.Parse(r[3]);
-                l.Newest = DateTime.Now.AddMinutes(-12);
-                l.Glyph = Glyph.Folder;
-                locs.Add(l);
-            }
+            List<LogLocation> locs = DemoLocations();
             start.SetLocations(locs);
         }
 

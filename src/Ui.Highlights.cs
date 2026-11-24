@@ -98,6 +98,8 @@ namespace LogVice
                 HighlightRule r = Decode(e);
                 if (r != null && list.Count < 200) list.Add(r);
             }
+            // A screenshot run shows the example rules when none are saved, so highlights are in the picture.
+            if (Settings.ReadOnly && list.Count == 0) return Examples();
             return list;
         }
 
@@ -307,6 +309,7 @@ namespace LogVice
             MinimizeBox = false;
             MaximizeBox = false;
             ShowIcon = false;
+            DialogFit.Keep(this);
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
             KeyPreview = true;

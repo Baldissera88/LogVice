@@ -194,6 +194,8 @@ namespace LogVice
         }
     }
 
+    public interface IFitWidth { void FitWidth(int avail); }
+
     public sealed class SettingRow : Panel, IThemed, IMeasured
     {
         Theme theme = Theme.Light();
@@ -202,6 +204,15 @@ namespace LogVice
         public bool MonoValue, MonoDesc, Dim;
         public Color Swatch = Color.Empty;
         public readonly Control Accessory;
+        // A longer explanation behind a small More link under the description.
+        public string More;
+        // Marked: changed from its default. Highlight: the setting a search opened.
+        public bool Marked, Highlight;
+        // Puts a wide control under the text instead of beside it when the row is too narrow for both.
+        public bool WrapAccessory;
+        public event EventHandler MoreToggled;
+        bool expanded, linkHot;
+        Rectangle link;
 
         public SettingRow(Glyph glyph, string title, string desc, Control right)
         {
@@ -213,25 +224,62 @@ namespace LogVice
             if (right != null) Controls.Add(right);
         }
 
+        public bool Expanded
+        {
+            get { return expanded; }
+            set { if (expanded == value) return; expanded = value; Invalidate(); if (MoreToggled != null) MoreToggled(this, EventArgs.Empty); }
+        }
+
         int TextX()
         {
-            return Glyph != Glyph.None ? Dpi.S(56) : Dpi.S(20);
+            return Glyph != Glyph.None || Swatch != Color.Empty ? Dpi.S(56) : Dpi.S(20);
+        }
+
+        bool Under(int width)
+        {
+            if (!WrapAccessory || Accessory == null) return false;
+            int aw = Accessory is IFitWidth ? 4 * Dpi.S(108) + Dpi.S(6) : Accessory.Width;
+            return aw + Dpi.S(32) > (width - TextX()) / 2;
         }
 
         int RightW(int width)
         {
-            if (Accessory != null) return Accessory.Width + Dpi.S(20);
+            if (Under(width)) return Dpi.S(16);
+            if (Accessory != null) return Accessory.Width + Dpi.S(32);
             if (!string.IsNullOrEmpty(Value)) return Math.Min(Draw.Measure(Value, MonoValue ? Fonts.Mono : Fonts.Ui).Width + 2, width / 2) + Dpi.S(20);
             return Dpi.S(16);
         }
 
+        bool HasMore
+        {
+            get { return !string.IsNullOrEmpty(More); }
+        }
+
+        int MoreH(int tw)
+        {
+            if (!HasMore) return 0;
+            int h = Dpi.S(2) + Fonts.Small.Height;
+            if (expanded) h += Dpi.S(4) + Draw.WrapHeight(More, Fonts.Small, tw);
+            return h;
+        }
+
+        void FitAccessory(int width)
+        {
+            IFitWidth f = Accessory as IFitWidth;
+            if (f == null) return;
+            f.FitWidth(Under(width) ? width - TextX() - Dpi.S(16) : 4 * Dpi.S(108) + Dpi.S(6));
+        }
+
         public int Measure(int width)
         {
+            FitAccessory(width);
             int tw = Math.Max(Dpi.S(80), width - TextX() - RightW(width));
             int h = Dpi.S(14) + Fonts.Ui.Height;
             if (!string.IsNullOrEmpty(Desc)) h += Dpi.S(2) + Draw.WrapHeight(Desc, DescFont, tw);
+            h += MoreH(tw);
+            if (Under(width)) h += Dpi.S(10) + Accessory.Height;
             h += Dpi.S(14);
-            int min = Accessory != null ? Accessory.Height + Dpi.S(24) : Dpi.S(56);
+            int min = Accessory != null && !Under(width) ? Accessory.Height + Dpi.S(24) : Dpi.S(56);
             return Math.Max(min, h);
         }
 
@@ -246,13 +294,36 @@ namespace LogVice
             BackColor = t.Card;
             IThemed th = Accessory as IThemed;
             if (th != null) th.ApplyTheme(t);
+            else if (Accessory != null) { Accessory.BackColor = t.Field; Accessory.ForeColor = t.Text; }
             Invalidate();
         }
 
         protected override void OnLayout(LayoutEventArgs levent)
         {
             base.OnLayout(levent);
-            if (Accessory != null) Accessory.Location = new Point(Width - Dpi.S(16) - Accessory.Width, (Height - Accessory.Height) / 2);
+            if (Accessory == null) return;
+            FitAccessory(Width);
+            if (Under(Width)) Accessory.Location = new Point(TextX(), Height - Dpi.S(14) - Accessory.Height);
+            else Accessory.Location = new Point(Width - Dpi.S(16) - Accessory.Width, (Height - Accessory.Height) / 2);
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            bool hot = HasMore && link.Contains(e.Location);
+            if (hot != linkHot) { linkHot = hot; Cursor = hot ? Cursors.Hand : Cursors.Default; Invalidate(); }
+            base.OnMouseMove(e);
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            if (linkHot) { linkHot = false; Cursor = Cursors.Default; Invalidate(); }
+            base.OnMouseLeave(e);
+        }
+
+        protected override void OnMouseClick(MouseEventArgs e)
+        {
+            if (HasMore && link.Contains(e.Location)) Expanded = !expanded;
+            base.OnMouseClick(e);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -262,6 +333,7 @@ namespace LogVice
             RectangleF r = new RectangleF(0, 0, Width, Height);
             Draw.Fill(g, r, Dpi.F(6), theme.Card);
             Draw.Stroke(g, r, Dpi.F(6), theme.Divider, 1f);
+            if (Highlight) Draw.Stroke(g, new RectangleF(1f, 1f, Width - 2.5f, Height - 2.5f), Dpi.F(6), theme.Accent, 2f);
             if (Swatch != Color.Empty)
             {
                 int s = Dpi.S(18);
@@ -277,10 +349,40 @@ namespace LogVice
             int tw = Math.Max(Dpi.S(80), Width - tx - RightW(Width));
             int th = Fonts.Ui.Height;
             int dh = string.IsNullOrEmpty(Desc) ? 0 : Draw.WrapHeight(Desc, DescFont, tw);
-            int block = th + (dh > 0 ? Dpi.S(2) + dh : 0);
-            int y = (Height - block) / 2;
+            int mh = MoreH(tw);
+            int block = th + (dh > 0 ? Dpi.S(2) + dh : 0) + mh;
+            int y = Under(Width) ? Dpi.S(14) : (Height - block) / 2;
             Draw.Text(g, Title, Fonts.Ui, new Rectangle(tx, y, tw, th), Dim ? theme.Text3 : theme.Text, Draw.Line);
-            if (dh > 0) Draw.Text(g, Desc, DescFont, new Rectangle(tx, y + th + Dpi.S(2), tw, dh + 2), theme.Text2, Draw.Wrap);
+            if (Marked)
+            {
+                int d = Dpi.S(7);
+                int x = tx + Math.Min(tw - d, Draw.Measure(Title, Fonts.Ui).Width + Dpi.S(8));
+                Draw.Fill(g, new RectangleF(x, y + (th - d) / 2f, d, d), d / 2f, theme.Accent);
+            }
+            int ly = y + th;
+            if (dh > 0)
+            {
+                Draw.Text(g, Desc, DescFont, new Rectangle(tx, ly + Dpi.S(2), tw, dh + 2), theme.Text2, Draw.Wrap);
+                ly += Dpi.S(2) + dh;
+            }
+            if (HasMore)
+            {
+                ly += Dpi.S(2);
+                if (expanded)
+                {
+                    int eh = Draw.WrapHeight(More, Fonts.Small, tw);
+                    Draw.Text(g, More, Fonts.Small, new Rectangle(tx, ly, tw, eh + 2), theme.Text2, Draw.Wrap);
+                    ly += eh + Dpi.S(4);
+                }
+                string label = expanded ? "Less" : "More";
+                Font f = linkHot ? new Font(Fonts.Small, FontStyle.Underline) : Fonts.Small;
+                try
+                {
+                    link = new Rectangle(tx, ly, Draw.Measure(label, f).Width + Dpi.S(4), Fonts.Small.Height);
+                    Draw.Text(g, label, f, link, theme.Accent, Draw.Line);
+                }
+                finally { if (linkHot) f.Dispose(); }
+            }
             if (Accessory == null && !string.IsNullOrEmpty(Value))
             {
                 Font f = MonoValue ? Fonts.Mono : Fonts.Ui;

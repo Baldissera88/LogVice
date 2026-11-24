@@ -35,6 +35,7 @@ namespace LogVice
             MinimizeBox = false;
             MaximizeBox = false;
             ShowIcon = false;
+            DialogFit.Keep(this);
             ShowInTaskbar = false;
             KeyPreview = true;
             StartPosition = FormStartPosition.CenterParent;

@@ -1,48 +1,74 @@
 name: Bug report
-description: Something in LogVice does not work as expected
-labels: [bug]
+description: Something in LogVice does not work as it should.
+title: "[Bug]: "
+labels: ["bug"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Help > Report a problem in LogVice fills in this form for you. Do not put paths, file names, computer names or log text here unless they are needed. Attach a log file yourself if it helps, after you have looked through it.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What LogVice did, or the message it showed.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to repeat it
+      placeholder: |
+        1. Open ...
+        2. ...
+    validations:
+      required: false
   - type: input
     id: version
     attributes:
       label: LogVice version
-      description: Shown in Settings > About.
-      placeholder: "1.5.0"
-    validations:
-      required: true
-  - type: dropdown
-    id: package
-    attributes:
-      label: Package
-      options:
-        - MSI
-        - Portable exe
-        - Built from source
+      placeholder: "2.0.0"
     validations:
       required: true
   - type: input
     id: windows
     attributes:
       label: Windows version
-      placeholder: "Windows 11 24H2, Windows Server 2022"
+      placeholder: "Windows 11 Enterprise 24H2, build 26100.2605"
     validations:
-      required: true
-  - type: textarea
-    id: what
+      required: false
+  - type: input
+    id: dotnet
     attributes:
-      label: What happened
-      description: What you did, what you expected and what LogVice did instead.
+      label: .NET Framework version
+      placeholder: ".NET Framework 4.8.1"
     validations:
-      required: true
+      required: false
+  - type: input
+    id: theme
+    attributes:
+      label: Theme
+      description: The theme in use, if the problem is about how LogVice looks.
+    validations:
+      required: false
+  - type: input
+    id: formats
+    attributes:
+      label: Formats of the open logs
+      description: How many logs of each format were open, for example CMTrace 3, Plain text 1. No file names.
+    validations:
+      required: false
   - type: textarea
     id: log
     attributes:
       label: Log sample
-      description: If a log does not parse well, paste a few lines of it here or attach the file. Remove computer names, user names and other private data first.
+      description: If a log does not parse well, paste a few lines of it here or attach the file. Remove computer names, user names and other private data first. LogVice does not add this.
       render: text
-  - type: textarea
-    id: details
-    attributes:
-      label: About details
-      description: Settings > About > Copy details, pasted here.
-      render: text
+    validations:
+      required: false

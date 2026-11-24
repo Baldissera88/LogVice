@@ -84,7 +84,7 @@ namespace LogVice
         HeaderBar header;
         ChipRow chipRow;
         BarPanel filterBar;
-        FlatButton bBack, bForward, bHome, bOpen, bBrowse, bFollow, bLive, bStop, bReload, bLookup, bUpdate, bTheme, bSettings, bHelp;
+        FlatButton bBack, bForward, bHome, bOpen, bBrowse, bFollow, bLive, bStop, bReload, bLookup, bTheme, bSettings, bHelp;
         FlatButton bFindPrev, bFindNext, bErrPrev, bErrNext;
         StatChip cEntries, cErr, cWarn, cInfo;
         FluentButton bExcl, bRegex, bComp, bHl, bFrom, bTo, bClear;
@@ -108,8 +108,7 @@ namespace LogVice
         ContextMenuStrip compMenu, rowMenu, hlMenu;
         LookupForm lookup;
         BrowseView browse;
-        SettingsView settingsView;
-        enum ViewKind { Logs, Browse, Settings }
+        enum ViewKind { Logs, Browse }
         ViewKind viewKind = ViewKind.Logs;
         List<LogLocation> localLocations;
         volatile int discoverGen;
@@ -207,7 +206,7 @@ namespace LogVice
             noteTimer.Interval = 4000;
             noteTimer.Tick += delegate { noteTimer.Stop(); UpdateStatus(); };
 
-            Resize += delegate { FitRows(); };
+            Resize += delegate { FitRows(); FitDetail(); };
             FitRows();
             FormClosing += delegate { if (!eggMode) SaveWindow(); };
             FormClosed += delegate
@@ -286,13 +285,10 @@ namespace LogVice
             bStop.Wanted = false;
             bReload = Flat(HeaderFold.Reload, Glyph.Reload, "Reload", "Read the open files again (F5)", delegate { Reload(); });
             bLookup = Flat(HeaderFold.Lookup, Glyph.Lookup, "Lookup", "Explain an error code (Ctrl+L)", delegate { ShowLookup(null); });
-            bUpdate = Flat(HeaderFold.Update, Glyph.Live, "Update", "A newer version of LogVice is available", delegate { if (pendingUpdate != null && pendingUpdate.CanInstall) InstallUpdate(pendingUpdate); else ShowAbout(AboutForm.AboutPart); });
-            bUpdate.Primary = true;
-            bUpdate.Wanted = false;
             bTheme = Flat(HeaderFold.Theme, Glyph.Palette, "", "Change the theme", delegate { CycleTheme(); });
-            bSettings = Flat(HeaderFold.Settings, Glyph.Gear, "", "Settings (Ctrl+,)", delegate { if (viewKind == ViewKind.Settings) ShowView(ViewKind.Logs); else OpenSettings(0); });
+            bSettings = Flat(HeaderFold.Settings, Glyph.Gear, "", "Settings (Ctrl+,)", delegate { OpenSettings(null); });
             bHelp = Flat(HeaderFold.Help, Glyph.Help, "", "Help: the start page, what's new, keyboard shortcuts, the command line and About LogVice (F1)", delegate { HelpMenu().Show(bHelp, new Point(bHelp.Width, bHelp.Height), ToolStripDropDownDirection.BelowLeft); });
-            header.AddButtons(bBack, bForward, bHome, bOpen, bBrowse, bFollow, bLive, bStop, bReload, bLookup, bUpdate, bTheme, bSettings, bHelp);
+            header.AddButtons(bBack, bForward, bHome, bOpen, bBrowse, bFollow, bLive, bStop, bReload, bLookup, bTheme, bSettings, bHelp);
             header.More.Click += Safe.Wrap(delegate { MoreMenu().Show(header.More, new Point(header.More.Width, header.More.Height), ToolStripDropDownDirection.BelowLeft); });
             tips.SetToolTip(header.More, "More: the buttons that do not fit in the window");
             SetLive(Settings.GetBool("Live", true));
@@ -340,6 +336,46 @@ namespace LogVice
             if (chipRow == null) return;
             int h = ChipRow.RowHeight(ClientSize.Height);
             if (chipRow.Height != h) chipRow.Height = h;
+        }
+
+        bool detailLow;
+
+        // The detail pane under the list fits a low window: the meta row and the buttons get tighter, the message keeps
+        // at least two lines (and the codes card room to show) and the list keeps at least 8 rows.
+        void FitDetail()
+        {
+            if (split == null || detailCard == null || grid == null || !split.IsHandleCreated) return;
+            bool low = ClientSize.Height < Dpi.S(780);
+            if (low != detailLow)
+            {
+                detailLow = low;
+                int right = Dpi.S(low ? 14 : 22), bottom = Dpi.S(low ? 2 : 6);
+                foreach (Control c in metaFlow.Controls) c.Margin = new Padding(0, c == badge ? Dpi.S(low ? 2 : 5) : 0, right, bottom);
+                foreach (Control c in actFlow.Controls)
+                {
+                    c.Height = Dpi.S(low ? 26 : 30);
+                    c.Margin = new Padding(0, 0, Dpi.S(6), Dpi.S(low ? 2 : 4));
+                }
+                detailCard.Padding = low ? new Padding(Dpi.S(16), Dpi.S(8), Dpi.S(14), Dpi.S(6)) : new Padding(Dpi.S(16), Dpi.S(12), Dpi.S(14), Dpi.S(10));
+                metaFlow.PerformLayout();
+                actFlow.PerformLayout();
+            }
+            int meta = metaFlow.Height, act = actFlow.Visible ? actFlow.Height : 0;
+            int bodyMin = Math.Max(tMsg.Font.Height * 2 + Dpi.S(14), Dpi.S(124));
+            int need = detailCard.Padding.Vertical + meta + act + Dpi.S(2) + bodyMin;
+            int listMin = grid.HeightFor(8);
+            int total = split.Height;
+            int gap = split.SplitterWidth;
+            int p2 = Math.Min(need, Math.Max(Dpi.S(120), total - listMin - gap));
+            int p1 = Math.Max(Dpi.S(60), Math.Min(listMin, total - p2 - gap));
+            try
+            {
+                if (split.Panel2MinSize != p2) split.Panel2MinSize = p2;
+                if (split.Panel1MinSize != p1) split.Panel1MinSize = p1;
+                int want = total - p2 - gap;
+                if (split.Panel2.Height < p2 && want >= p1) split.SplitterDistance = want;
+            }
+            catch (Exception) { }
         }
 
         void SetLive(bool on)
@@ -539,28 +575,10 @@ namespace LogVice
             browse.HistoryChanged += delegate
             {
                 Settings.SetBool("AutoMerge", browse.IncludeHistory);
-                settingsView.SetAutoMerge(browse.IncludeHistory);
-            };
-
-            settingsView = new SettingsView(tips);
-            settingsView.Dock = DockStyle.Fill;
-            settingsView.Visible = false;
-            settingsView.BackRequested += delegate { ShowView(ViewKind.Logs); };
-            settingsView.SettingsChanged += delegate { ApplySettings(); };
-            settingsView.FoldersChanged += delegate { Discover(); };
-            settingsView.BrowseRequested += delegate { OpenBrowse(null); };
-            settingsView.RecentCleared += delegate { RefreshRecent(); };
-            settingsView.ElevateRequested += delegate { Elevate(OpenPaths()); };
-            settingsView.HighlightsChanged += delegate
-            {
-                rules = new List<HighlightRule>(settingsView.Rules);
-                if (hlFilter > 0) hlFilter = -1;
-                RebuildMarks();
             };
 
             content.Controls.Add(split);
             content.Controls.Add(browse);
-            content.Controls.Add(settingsView);
             content.Controls.Add(drop);
         }
 
@@ -571,13 +589,10 @@ namespace LogVice
             viewKind = v;
             SuspendLayout();
             browse.Visible = v == ViewKind.Browse;
-            settingsView.Visible = v == ViewKind.Settings;
             split.Visible = v == ViewKind.Logs;
             filterBar.Visible = chipRow.Visible = v == ViewKind.Logs;
             if (v == ViewKind.Browse) browse.BringToFront();
-            if (v == ViewKind.Settings) settingsView.BringToFront();
             Check(bBrowse, v == ViewKind.Browse);
-            Check(bSettings, v == ViewKind.Settings);
             Check(bHome, v == ViewKind.Logs && start.Visible);
             tFind.Enabled = v == ViewKind.Logs;
             ResumeLayout(true);
@@ -595,13 +610,6 @@ namespace LogVice
             browse.ShowFor("", localLocations, select);
         }
 
-        void OpenSettings(int tab)
-        {
-            settingsView.LoadValues();
-            ShowView(ViewKind.Settings);
-            settingsView.ShowTab(tab);
-        }
-
         void Discover()
         {
             int g = ++discoverGen;
@@ -616,7 +624,7 @@ namespace LogVice
                     if (g != discoverGen) return;
                     localLocations = list;
                     start.SetLocations(list);
-                    settingsView.SetLocations(list);
+                    if (settingsOpen != null && !settingsOpen.IsDisposed) settingsOpen.SetLocations(list);
                     browse.SetLocalCache(list);
                 });
             });
@@ -635,7 +643,6 @@ namespace LogVice
             string next = order[(order.IndexOf(theme.Name) + 1) % order.Count];
             Theme.Override = null;
             Settings.Set("Theme", next);
-            settingsView.LoadValues();
             ApplySettings();
             Note("Theme: " + next + ". Settings has the others, and System to follow Windows.");
         }
@@ -727,7 +734,7 @@ namespace LogVice
                 if (th != null) th.ApplyTheme(t);
                 else if (c is Panel || c is SplitterPanel || c is SplitContainer || c is FlowLayoutPanel)
                     c.BackColor = (c.Tag as string) == "card" ? t.Card : t.Bg;
-                if (!(c is StartPage) && !(c is BrowseView) && !(c is SettingsView)) ThemeTree(c, t);
+                if (!(c is StartPage) && !(c is BrowseView)) ThemeTree(c, t);
             }
         }
 
@@ -748,6 +755,7 @@ namespace LogVice
                 split.SplitterDistance = Math.Max(Dpi.S(160), (int)(split.Height * 0.66));
             }
             catch (Exception) { }
+            FitDetail();
             lastDir = Settings.Get("LastFolder");
             // A screenshot shows nothing from this PC: no recent files and no folders found on it.
             bool shot = Program.Options.Shot != null;
@@ -755,7 +763,7 @@ namespace LogVice
             if (shot) start.SetLocations(new List<LogLocation>());
             else if (!eggMode) Discover();
             if (!eggMode && !shot) CheckUpgraded();
-            if (!eggMode && !shot && Updates.Enabled && Updates.DueToday) Updates.CheckAsync(delegate (UpdateInfo r) { SafeInvoke(delegate { UpdateFound(r); }); });
+            if (!eggMode) StartUpdateCheck();
             RefreshCounts();
             ShowStart();
             ShowDetails();
@@ -905,7 +913,7 @@ namespace LogVice
                 case Keys.Control | Keys.O: PickFiles(false, null); return true;
                 case Keys.Control | Keys.B: if (viewKind == ViewKind.Browse) ShowView(ViewKind.Logs); else OpenBrowse(null); return true;
                 case Keys.Control | Keys.I: FollowItemDialog(viewKind == ViewKind.Browse ? browse.Computer : null); return true;
-                case Keys.Control | Keys.Oemcomma: if (viewKind == ViewKind.Settings) ShowView(ViewKind.Logs); else OpenSettings(0); return true;
+                case Keys.Control | Keys.Oemcomma: OpenSettings(null); return true;
                 case Keys.Control | Keys.Shift | Keys.O: if (st.Sources.Count > 0) PickFiles(true, null); return true;
                 case Keys.Control | Keys.F: if (viewKind != ViewKind.Logs) ShowView(ViewKind.Logs); tFind.Box.Focus(); tFind.Box.SelectAll(); return true;
                 case Keys.F3: FindStep(1); return true;
@@ -962,8 +970,6 @@ namespace LogVice
             Note("Following " + what + ": " + r.Total.ToString("N0") + (r.Total == 1 ? " line in " : " lines in ") + where + ". Clear the filter to see everything around it." + (r.Note != null ? " " + r.Note : ""));
         }
 
-        UpdateInfo pendingUpdate;
-        bool installing;
         InfoBar info;
         string notesSince;
 
@@ -997,73 +1003,11 @@ namespace LogVice
 
         void ShowNotes(string caption, string title, string text, string md)
         {
-            using (NotesForm f = new NotesForm(caption, title, text, md))
+            using (NotesForm f = new NotesForm(theme, caption, title, text, md))
             {
-                f.AddButton(ButtonKind.Standard, "Full changelog", DialogResult.Retry);
-                f.AddButton(ButtonKind.Accent, "Close", DialogResult.OK);
-                f.ApplyTheme(theme);
+                f.AddButton("Full changelog", DialogResult.Retry, false);
                 if (f.ShowDialog(this) == DialogResult.Retry) try { Process.Start(ReleaseNotes.ChangelogUrl); } catch (Exception) { }
             }
-        }
-
-        void UpdateFound(UpdateInfo r)
-        {
-            if (r == null || !r.Newer) return;
-            pendingUpdate = r;
-            bUpdate.Text = "Update " + r.Latest;
-            tips.SetToolTip(bUpdate, r.CanInstall ? "Install LogVice " + r.Latest + " now" : "LogVice " + r.Latest + " is available. Open About to download it.");
-            bUpdate.Wanted = true;
-            header.PerformLayout();
-            Note("LogVice " + r.Latest + " is available.");
-        }
-
-        void InstallUpdate(UpdateInfo r)
-        {
-            if (r == null || installing) return;
-            bool msi = Updates.IsInstalled;
-            string text = "You have " + Program.Version + ". Install downloads it from GitHub, checks it against the release's checksum and installs it. LogVice closes and opens again with the same logs." +
-                (msi ? " Windows asks for administrator rights." : "");
-            DialogResult a;
-            using (NotesForm f = new NotesForm("Update LogVice", "LogVice " + r.Latest + " is available", text, r.Notes))
-            {
-                f.AddButton(ButtonKind.Accent, "Install", DialogResult.Yes);
-                f.AddButton(ButtonKind.Standard, "Release page", DialogResult.No);
-                f.AddButton(ButtonKind.Standard, "Not now", DialogResult.Cancel);
-                f.ApplyTheme(theme);
-                a = f.ShowDialog(this);
-            }
-            if (a == DialogResult.No) { try { Process.Start(r.Url); } catch (Exception) { } return; }
-            if (a != DialogResult.Yes) return;
-            installing = true;
-            bUpdate.Enabled = false;
-            Note("Downloading LogVice " + r.Latest + "\u2026");
-            string[] reopen = OpenPaths();
-            Task.Factory.StartNew(delegate
-            {
-                string file = null, err = null;
-                try { file = Updates.Prepare(r, delegate (int pct) { SafeInvoke(delegate { Note("Downloading LogVice " + r.Latest + "\u2026 " + pct + " %"); }); }); }
-                catch (Exception ex) { err = ex.Message; }
-                SafeInvoke(delegate
-                {
-                    installing = false;
-                    bUpdate.Enabled = true;
-                    if (err == null)
-                    {
-                        try
-                        {
-                            Note("Installing LogVice " + r.Latest + "\u2026");
-                            Updates.Launch(file, reopen);
-                            Updates.HandedOff = true;
-                            Hide();
-                            Close();
-                            return;
-                        }
-                        catch (Exception ex) { err = ex.Message; }
-                    }
-                    if (MessageBox.Show(this, "LogVice " + r.Latest + " could not be installed automatically.\r\n\r\n" + err + "\r\n\r\nOpen the release page to download it?", "Update LogVice", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
-                        try { Process.Start(r.Url); } catch (Exception) { }
-                });
-            });
         }
 
         void SafeInvoke(Action a)
@@ -2148,6 +2092,7 @@ namespace LogVice
             List<uint> found = Codes.Find(msg);
             codes.SetCodes(found);
             codes.Visible = found.Count > 0;
+            FitDetail();
         }
 
         void MarkLinks()
@@ -2330,7 +2275,7 @@ namespace LogVice
                 hlMenu.Items.Add(mi);
             }
             hlMenu.Items.Add(new ToolStripSeparator());
-            hlMenu.Items.Add(Item("Edit highlight rules\u2026", "", true, delegate { OpenSettings(1); }));
+            hlMenu.Items.Add(Item("Edit highlight rules\u2026", "", true, delegate { OpenSettings(SettingsCatalog.Highlights); }));
             hlMenu.Show(bHl, new Point(0, bHl.Height + Dpi.S(2)));
         }
 
@@ -2369,8 +2314,7 @@ namespace LogVice
             HighlightRule r = new HighlightRule();
             r.Pattern = seed ?? "";
             r.Label = seed ?? "";
-            OpenSettings(1);
-            settingsView.AddRule(r);
+            OpenSettingsWithRule(r);
         }
 
         void GoToLine()

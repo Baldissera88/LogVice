@@ -70,6 +70,8 @@ namespace LogVice
         double off;
         int cur = -1, anchor = -1, hoverRow = -1;
         readonly int[] widths;
+        // Widths the user dragged by hand are kept when the window is narrow.
+        readonly bool[] userSet = new bool[4];
         bool sbHot, sbDrag, dragSel;
         double sbGrab;
         int resizing = -1, resizeX0, resizeW0, lastY;
@@ -89,12 +91,18 @@ namespace LogVice
             scrollTimer.Tick += delegate { AutoScrollTick(); };
         }
 
+        // The width that shows the date and the time.
+        static int TimeFull
+        {
+            get { return Draw.Measure("2026-11-03 00:00:00.000", Fonts.Mono).Width + Dpi.S(22); }
+        }
+
         public void SetDensity(int level)
         {
             int pad = level == 0 ? 4 : level == 2 ? 12 : 8;
             rowH = Math.Max(Dpi.S(18), Fonts.Mono.Height + Dpi.S(pad));
-            widths[1] = Draw.Measure("2026-11-03 00:00:00.000", Fonts.Mono).Width + Dpi.S(22);
-            widths[2] = Math.Max(Dpi.S(70), Draw.Measure("000000", Fonts.Mono).Width + Dpi.S(22));
+            if (!userSet[1]) widths[1] = TimeFull;
+            if (!userSet[2]) widths[2] = Math.Max(Dpi.S(70), Draw.Measure("000000", Fonts.Mono).Width + Dpi.S(22));
             lineW = Draw.Measure("0000000", Fonts.Mono).Width + Dpi.S(12);
             dateW = -1;
             Clamp();
@@ -144,6 +152,12 @@ namespace LogVice
         {
             if (off > MaxOff) off = MaxOff;
             if (off < 0) off = 0;
+        }
+
+        // The height that shows the header and this many rows.
+        public int HeightFor(int rows)
+        {
+            return headH + rows * rowH + Dpi.S(6);
         }
 
         public int PageRows
@@ -197,6 +211,40 @@ namespace LogVice
         struct Cols
         {
             public int Sev, Line, LineW, Msg, MsgW, Comp, Time, Thr, File, End;
+            // The widths of Component, Date / time, Thread and Log file as drawn.
+            public int[] W;
+        }
+
+        // How narrow a column may get before Message is cut instead. Date / time is as wide as the time alone.
+        int MinWidth(int col)
+        {
+            switch (col)
+            {
+                case 0: return Dpi.S(90);
+                case 1: return Draw.Measure("00:00:00.000", Fonts.Mono).Width + Dpi.S(22);
+                case 2: return Dpi.S(52);
+                default: return Dpi.S(90);
+            }
+        }
+
+        // Message gets at least 40 % of the list when the window is narrow. The other columns shrink first, Log file
+        // first, then Component, Date / time and Thread, each down to its minimum. A width the user dragged is kept.
+        public static int[] FitWidths(int avail, int msgMin, int[] want, int[] min, bool[] keep, bool[] shown)
+        {
+            int[] w = (int[])want.Clone();
+            int total = 0;
+            for (int i = 0; i < w.Length; i++) if (shown[i]) total += w[i];
+            int over = total - Math.Max(0, avail - msgMin);
+            int[] order = { 3, 0, 1, 2 };
+            foreach (int i in order)
+            {
+                if (over <= 0) break;
+                if (!shown[i] || keep[i]) continue;
+                int take = Math.Min(over, Math.Max(0, w[i] - min[i]));
+                w[i] -= take;
+                over -= take;
+            }
+            return w;
         }
 
         Cols ColumnLayout()
@@ -205,16 +253,21 @@ namespace LogVice
             int left = Dpi.S(8);
             int sevW = Dpi.S(28);
             c.End = Width - 1 - Gutter;
-            int fixedW = widths[0] + widths[1] + widths[2] + (MultiFile ? widths[3] : 0);
             c.Sev = left;
             c.Line = left + sevW;
             c.LineW = ShowLines ? lineW : 0;
             c.Msg = c.Line + c.LineW;
-            c.MsgW = Math.Max(Dpi.S(120), c.End - c.Msg - fixedW);
+            int avail = c.End - c.Msg;
+            int msgMin = Math.Max(Dpi.S(120), (int)(Width * 0.4));
+            int[] min = { MinWidth(0), MinWidth(1), MinWidth(2), MinWidth(3) };
+            bool[] shown = { true, true, true, MultiFile };
+            c.W = FitWidths(avail, msgMin, widths, min, userSet, shown);
+            int fixedW = c.W[0] + c.W[1] + c.W[2] + (MultiFile ? c.W[3] : 0);
+            c.MsgW = Math.Max(Dpi.S(120), avail - fixedW);
             c.Comp = c.Msg + c.MsgW;
-            c.Time = c.Comp + widths[0];
-            c.Thr = c.Time + widths[1];
-            c.File = c.Thr + widths[2];
+            c.Time = c.Comp + c.W[0];
+            c.Thr = c.Time + c.W[1];
+            c.File = c.Thr + c.W[2];
             return c;
         }
 
@@ -305,10 +358,10 @@ namespace LogVice
             int pad = Dpi.S(8);
             if (c.LineW > 0) Draw.Text(g, "Line", f, new Rectangle(c.Line, 0, c.LineW - Dpi.S(4), headH), fg, Draw.Line | TextFormatFlags.Right);
             Draw.Text(g, "Message", f, new Rectangle(c.Msg + pad, 0, c.MsgW - pad, headH), fg, Draw.Line);
-            Draw.Text(g, "Component", f, new Rectangle(c.Comp + pad, 0, widths[0] - pad * 2, headH), fg, Draw.Line);
-            Draw.Text(g, "Date / time", f, new Rectangle(c.Time + pad, 0, widths[1] - pad * 2, headH), fg, Draw.Line);
-            Draw.Text(g, "Thread", f, new Rectangle(c.Thr + pad, 0, widths[2] - pad * 2, headH), fg, Draw.Line | TextFormatFlags.Right);
-            if (MultiFile) Draw.Text(g, "Log file", f, new Rectangle(c.File + pad, 0, widths[3] - pad * 2, headH), fg, Draw.Line);
+            Draw.Text(g, "Component", f, new Rectangle(c.Comp + pad, 0, c.W[0] - pad * 2, headH), fg, Draw.Line);
+            Draw.Text(g, c.W[1] < TimeFull ? "Time" : "Date / time", f, new Rectangle(c.Time + pad, 0, c.W[1] - pad * 2, headH), fg, Draw.Line);
+            Draw.Text(g, "Thread", f, new Rectangle(c.Thr + pad, 0, c.W[2] - pad * 2, headH), fg, Draw.Line | TextFormatFlags.Right);
+            if (MultiFile) Draw.Text(g, "Log file", f, new Rectangle(c.File + pad, 0, c.W[3] - pad * 2, headH), fg, Draw.Line);
             using (Pen p = new Pen(theme.Divider))
             {
                 g.DrawLine(p, Dpi.S(8), headH - 1, Width - Dpi.S(8), headH - 1);
@@ -364,19 +417,27 @@ namespace LogVice
             if (hit) PaintHighlighted(g, msg, mr);
             else Draw.Text(g, msg, Fonts.Mono, mr, theme.Text, Draw.Line);
             int ci = Data.Comp[i];
-            if (ci >= 0) Draw.Text(g, Data.CompNames[ci], Fonts.Ui, new Rectangle(c.Comp + pad, y, widths[0] - pad * 2, rowH), theme.Text2, Draw.Line);
+            if (ci >= 0) Draw.Text(g, Data.CompNames[ci], Fonts.Ui, new Rectangle(c.Comp + pad, y, c.W[0] - pad * 2, rowH), theme.Text2, Draw.Line);
             long tm = Data.Time[i];
             if (tm != Store.NoTime)
             {
                 string ts = Fmt.Time(tm);
                 if (dateW < 0) dateW = TextW(g, "2026-11-04 ", Fonts.Mono);
-                int tx = c.Time + pad, tw = widths[1] - pad * 2;
-                Draw.Text(g, ts.Substring(0, 11), Fonts.Mono, new Rectangle(tx, y, Math.Min(dateW + 1, tw), rowH), theme.Text3, Draw.Line);
-                if (tw > dateW) Draw.Text(g, ts.Substring(11), Fonts.Mono, new Rectangle(tx + dateW, y, tw - dateW, rowH), theme.Text, Draw.Line);
+                int tx = c.Time + pad, tw = c.W[1] - pad * 2;
+                if (c.W[1] < TimeFull)
+                {
+                    // Too narrow for the date: the time alone.
+                    Draw.Text(g, ts.Substring(11), Fonts.Mono, new Rectangle(tx, y, tw, rowH), theme.Text, Draw.Line);
+                }
+                else
+                {
+                    Draw.Text(g, ts.Substring(0, 11), Fonts.Mono, new Rectangle(tx, y, Math.Min(dateW + 1, tw), rowH), theme.Text3, Draw.Line);
+                    if (tw > dateW) Draw.Text(g, ts.Substring(11), Fonts.Mono, new Rectangle(tx + dateW, y, tw - dateW, rowH), theme.Text, Draw.Line);
+                }
             }
             int th = Data.Thread[i];
-            if (th >= 0) Draw.Text(g, th.ToString(CultureInfo.InvariantCulture), Fonts.Mono, new Rectangle(c.Thr + pad, y, widths[2] - pad * 2, rowH), theme.Text2, Draw.Line | TextFormatFlags.Right);
-            if (MultiFile) Draw.Text(g, Data.Sources[Data.Src[i]].Name, Fonts.Ui, new Rectangle(c.File + pad, y, widths[3] - pad * 2, rowH), theme.Text2, Draw.Line);
+            if (th >= 0) Draw.Text(g, th.ToString(CultureInfo.InvariantCulture), Fonts.Mono, new Rectangle(c.Thr + pad, y, c.W[2] - pad * 2, rowH), theme.Text2, Draw.Line | TextFormatFlags.Right);
+            if (MultiFile) Draw.Text(g, Data.Sources[Data.Src[i]].Name, Fonts.Ui, new Rectangle(c.File + pad, y, c.W[3] - pad * 2, rowH), theme.Text2, Draw.Line);
         }
 
         public HighlightRule MarkAt(int i)
@@ -520,8 +581,9 @@ namespace LogVice
             if (resizing >= 0)
             {
                 int dx = e.X - resizeX0;
-                if (resizing == 0) widths[0] = Math.Max(Dpi.S(50), resizeW0 - dx);
-                else widths[resizing - 1] = Math.Max(Dpi.S(40), resizeW0 + dx);
+                int col = resizing == 0 ? 0 : resizing - 1;
+                widths[col] = resizing == 0 ? Math.Max(Dpi.S(50), resizeW0 - dx) : Math.Max(Dpi.S(40), resizeW0 + dx);
+                userSet[col] = true;
                 Invalidate();
                 return;
             }
@@ -570,7 +632,7 @@ namespace LogVice
             {
                 resizing = b;
                 resizeX0 = e.X;
-                resizeW0 = b == 0 ? widths[0] : widths[b - 1];
+                resizeW0 = ColumnLayout().W[b == 0 ? 0 : b - 1];
                 return;
             }
             if (HasBar && Track().Contains(e.Location) && e.Button == MouseButtons.Left)

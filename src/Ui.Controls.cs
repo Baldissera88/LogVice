@@ -840,6 +840,8 @@ namespace LogVice
     {
         public string LeftText = "", RightText = "";
         public float Progress = -1;
+        // The line about a newer version, between the message and the numbers on the right.
+        public Control Note;
 
         public StatusBar()
         {
@@ -863,7 +865,13 @@ namespace LogVice
             Font f = theme.Num(Fonts.Small);
             int pad = Dpi.S(18);
             int rw = Math.Min(Draw.Measure(RightText, f).Width + 2, Width * 3 / 4);
-            Draw.Text(g, LeftText, f, new Rectangle(pad, 0, Math.Max(0, Width - pad * 2 - rw - Dpi.S(20)), Height), theme.Text3, Draw.Line);
+            int noteW = 0;
+            if (Note != null && Note.Visible)
+            {
+                noteW = Note.Width + Dpi.S(12);
+                Note.SetBounds(Math.Max(pad, Width - pad - rw - Dpi.S(16) - Note.Width), 0, Note.Width, Height - (Progress >= 0 ? 0 : 0));
+            }
+            Draw.Text(g, LeftText, f, new Rectangle(pad, 0, Math.Max(0, Width - pad * 2 - rw - Dpi.S(20) - noteW), Height), theme.Text3, Draw.Line);
             Draw.Text(g, RightText, f, new Rectangle(Width - pad - rw, 0, rw, Height), theme.Text3, Draw.Line | TextFormatFlags.Right);
         }
     }

@@ -598,149 +598,43 @@ namespace LogVice
         }
     }
 
-    public sealed class NotesForm : Form, IThemed
+    // A paragraph of text above the cards of a page.
+    public sealed class IntroText : FluentControl, IMeasured
     {
-        readonly Label heading, intro;
-        readonly Panel card, scroller, bottom;
-        readonly NotesView view;
-        readonly List<FluentButton> buttons = new List<FluentButton>();
-        Theme theme = Theme.Light();
-
-        public NotesForm(string caption, string title, string text, string notes)
+        public IntroText(string text)
         {
-            Text = caption;
-            Font = Fonts.Ui;
-            FormBorderStyle = FormBorderStyle.Sizable;
-            MinimizeBox = false;
-            MaximizeBox = false;
-            ShowIcon = false;
-            ShowInTaskbar = false;
-            KeyPreview = true;
-            StartPosition = FormStartPosition.CenterParent;
-            Size = new Size(Dpi.S(680), Dpi.S(620));
-            MinimumSize = new Size(Dpi.S(440), Dpi.S(360));
-            Padding = new Padding(Dpi.S(24), Dpi.S(18), Dpi.S(24), 0);
-
-            heading = new Label();
-            heading.Dock = DockStyle.Top;
-            heading.Font = Fonts.Title;
-            heading.Text = title;
-            heading.Height = Fonts.Title.Height + Dpi.S(8);
-            heading.UseMnemonic = false;
-
-            intro = new Label();
-            intro.Dock = DockStyle.Top;
-            intro.Text = text ?? "";
-            intro.UseMnemonic = false;
-            intro.Visible = intro.Text.Length > 0;
-
-            Panel gap = new Panel();
-            gap.Dock = DockStyle.Top;
-            gap.Height = Dpi.S(12);
-
-            card = new Panel();
-            card.Dock = DockStyle.Fill;
-            card.Padding = new Padding(Dpi.S(20), Dpi.S(16), Dpi.S(4), Dpi.S(8));
-
-            scroller = new Panel();
-            scroller.Dock = DockStyle.Fill;
-            scroller.AutoScroll = true;
-            scroller.Resize += delegate { FitView(); };
-
-            view = new NotesView();
-            view.Location = new Point(0, 0);
-            scroller.Controls.Add(view);
-            card.Controls.Add(scroller);
-
-            bottom = new Panel();
-            bottom.Dock = DockStyle.Bottom;
-            bottom.Height = Dpi.S(64);
-            bottom.Resize += delegate { LayoutButtons(); };
-
-            Controls.Add(card);
-            Controls.Add(gap);
-            Controls.Add(intro);
-            Controls.Add(heading);
-            Controls.Add(bottom);
-            Resize += delegate { SizeIntro(); };
-            KeyDown += delegate (object s, KeyEventArgs e)
-            {
-                if (e.KeyCode != Keys.Escape) return;
-                e.Handled = true;
-                DialogResult = DialogResult.Cancel;
-                Close();
-            };
-            view.Markdown = string.IsNullOrEmpty(notes) ? "No release notes were published with this version." : notes;
+            Text = text ?? "";
+            TabStop = false;
+            SetStyle(ControlStyles.Selectable, false);
         }
 
-        public FluentButton AddButton(ButtonKind kind, string text, DialogResult result)
+        public int Measure(int width)
         {
-            FluentButton b = new FluentButton(kind, Glyph.None, text);
-            b.Size = new Size(Math.Max(Dpi.S(96), b.GetPreferredSize(Size.Empty).Width), Dpi.S(34));
-            b.Click += delegate { DialogResult = result; Close(); };
-            buttons.Add(b);
-            bottom.Controls.Add(b);
-            LayoutButtons();
-            return b;
+            return Draw.WrapHeight(Text, Fonts.Ui, Math.Max(Dpi.S(80), width - Dpi.S(4))) + Dpi.S(6);
         }
 
-        void FitView()
+        protected override void OnPaint(PaintEventArgs e)
         {
-            int w = Math.Max(Dpi.S(100), scroller.ClientSize.Width - Dpi.S(16));
-            if (view.Width != w) view.Width = w;
+            e.Graphics.Clear(Surface);
+            Draw.Text(e.Graphics, Text, Fonts.Ui, new Rectangle(Dpi.S(2), 0, Math.Max(0, Width - Dpi.S(4)), Height), theme.Text2, Draw.Wrap);
+        }
+    }
+
+    // What's new and the release notes of an update: a title, a line of text, and the notes in a card.
+    public sealed class NotesForm : PageForm
+    {
+        public NotesForm(Theme t, string caption, string title, string text, string notes) : base(caption, t)
+        {
+            Size = new Size(Dpi.S(720), Dpi.S(660));
+            Add(new SectionTitle(title));
+            if (!string.IsNullOrEmpty(text)) Add(new IntroText(text));
+            Add(new NotesCard(notes));
         }
 
-        void LayoutButtons()
+        // Docked from the right, after Close: the first one given ends up next to Close.
+        public FlatButton AddButton(string text, DialogResult result, bool primary)
         {
-            int x = bottom.ClientSize.Width;
-            for (int i = buttons.Count - 1; i >= 0; i--)
-            {
-                FluentButton b = buttons[i];
-                x -= b.Width;
-                b.Location = new Point(x, (bottom.ClientSize.Height - b.Height) / 2);
-                x -= Dpi.S(8);
-            }
-        }
-
-        void SizeIntro()
-        {
-            if (!intro.Visible) return;
-            int w = Math.Max(Dpi.S(100), ClientSize.Width - Padding.Horizontal);
-            intro.Height = Draw.WrapHeight(intro.Text, intro.Font, w) + Dpi.S(4);
-        }
-
-        public void ApplyTheme(Theme t)
-        {
-            theme = t;
-            BackColor = t.Bg;
-            ForeColor = t.Text;
-            foreach (Control c in Controls) c.BackColor = t.Bg;
-            heading.ForeColor = t.Text;
-            intro.ForeColor = t.Text2;
-            card.BackColor = t.Card;
-            scroller.BackColor = t.Card;
-            view.ApplyTheme(t);
-            foreach (FluentButton b in buttons) b.ApplyTheme(t);
-            NativeMethods.ScrollTheme(scroller, t.IsDark);
-            if (IsHandleCreated) NativeMethods.StyleWindow(Handle, t);
-            Invalidate(true);
-        }
-
-        protected override void OnHandleCreated(EventArgs e)
-        {
-            base.OnHandleCreated(e);
-            NativeMethods.StyleWindow(Handle, theme);
-            NativeMethods.ScrollTheme(scroller, theme.IsDark);
-            SizeIntro();
-            FitView();
-            LayoutButtons();
-        }
-
-        protected override void OnShown(EventArgs e)
-        {
-            base.OnShown(e);
-            FitView();
-            if (buttons.Count > 0) buttons[0].Focus();
+            return Footer(text, primary, delegate { DialogResult = result; Close(); });
         }
     }
 }

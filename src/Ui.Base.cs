@@ -411,6 +411,20 @@ namespace LogVice
             catch (Exception) { }
         }
 
+        // Removes a saved value, so its default applies again.
+        public static void Remove(string name)
+        {
+            if (ReadOnly) return;
+            try
+            {
+                using (RegistryKey k = Registry.CurrentUser.OpenSubKey(KeyPath, true))
+                {
+                    if (k != null) k.DeleteValue(name, false);
+                }
+            }
+            catch (Exception) { }
+        }
+
         public static bool GetBool(string name, bool def)
         {
             string v = Get(name);
@@ -619,6 +633,14 @@ namespace LogVice
                     g.DrawLine(p, r.X + rad * Theme.CornerScale, r.Bottom - Dpi.F(0.75f), r.Right - rad * Theme.CornerScale, r.Bottom - Dpi.F(0.75f));
             }
             g.Restore(st);
+        }
+
+        // A card: the theme's card colour with a thin line round it.
+        public static void Card(Graphics g, Rectangle r, Theme t)
+        {
+            RectangleF f = new RectangleF(r.X, r.Y, r.Width, r.Height);
+            Fill(g, f, Dpi.F(6), t.Card);
+            Stroke(g, f, Dpi.F(6), t.Divider, 1f);
         }
 
         public static void Stroke(Graphics g, RectangleF r, float rad, Color c, float width)

@@ -107,6 +107,53 @@ namespace LogVice
 
         readonly HashSet<Control> hooked = new HashSet<Control>();
 
+        // Takes every card out of the column, for a page that is built again.
+        protected void ClearItems()
+        {
+            col.SuspendLayout();
+            foreach (Control c in items) col.Controls.Remove(c);
+            items.Clear();
+            col.ResumeLayout(false);
+            scroll.AutoScrollPosition = new Point(0, 0);
+        }
+
+        protected void ScrollTo(Control c)
+        {
+            if (c == null || !items.Contains(c)) return;
+            scroll.AutoScrollPosition = new Point(0, Math.Max(0, c.Top - Dpi.S(8)));
+        }
+
+        // Docked from the right, after Close: the first one given ends up next to Close.
+        protected FlatButton Footer(string text, bool primary, EventHandler click)
+        {
+            FlatButton b = new FlatButton(text, Glyph.None);
+            b.Primary = primary;
+            b.AutoWidth();
+            b.Width = Math.Max(b.Width + Dpi.S(8), Dpi.S(96));
+            b.Dock = DockStyle.Right;
+            b.Click += Safe.Wrap(click);
+            b.ApplyTheme(theme);
+            Panel gap = new Panel();
+            gap.Width = Dpi.S(8);
+            gap.Dock = DockStyle.Right;
+            gap.BackColor = theme.Bg;
+            footer.Controls.Add(gap);
+            footer.Controls.Add(b);
+            gap.BringToFront();
+            b.BringToFront();
+            return b;
+        }
+
+        // The Close button gets another text and stops being the main button.
+        protected void CloseAs(string text, bool primary)
+        {
+            bClose.Text = text;
+            bClose.Primary = primary;
+            bClose.AutoWidth();
+            bClose.Width = Math.Max(bClose.Width + Dpi.S(8), Dpi.S(96));
+            bClose.ApplyTheme(theme);
+        }
+
         // Scrolls to the end of the column, for screenshots of the lower part of a page.
         public void ScrollToEnd()
         {

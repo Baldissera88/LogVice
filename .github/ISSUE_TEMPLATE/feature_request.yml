@@ -1,23 +1,28 @@
-name: Idea or feature request
-description: Suggest something LogVice could do better
-labels: [enhancement]
+name: Feature request
+description: Something you would like LogVice to do.
+title: "[Feature]: "
+labels: ["enhancement"]
 body:
-  - type: textarea
-    id: problem
+  - type: markdown
     attributes:
-      label: What are you trying to do
-      description: The troubleshooting task or log you work with, and what makes it slow or hard today.
+      value: |
+        Help > Suggest a feature in LogVice fills in this form for you.
+  - type: textarea
+    id: what
+    attributes:
+      label: What you would like
     validations:
       required: true
   - type: textarea
-    id: idea
+    id: why
     attributes:
-      label: How LogVice could help
+      label: Why
+      description: What it would solve, or what takes too long today.
     validations:
-      required: true
+      required: false
   - type: textarea
-    id: example
+    id: how
     attributes:
-      label: Example log lines
-      description: Optional. Remove computer names, user names and other private data first.
-      render: text
+      label: How you would use it
+    validations:
+      required: false

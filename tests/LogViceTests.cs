@@ -7,7 +7,7 @@ namespace LogVice.Tests
     using System.Text;
     using System.Text.RegularExpressions;
 
-    static class Program
+    static partial class Program
     {
         static int failed;
         static string data;
@@ -68,6 +68,13 @@ namespace LogVice.Tests
             HeaderFoldOrder();
             RecentPins();
             HeaderSubtitles();
+            SettingsCatalogTests();
+            SettingsSearch();
+            SettingsReset();
+            UpdateGateTests();
+            FeedbackLinks();
+            FeedbackMail();
+            GridWidths();
 
             Console.WriteLine(failed == 0 ? "ALL TESTS PASSED" : failed + " TEST(S) FAILED");
             return failed == 0 ? 0 : 1;

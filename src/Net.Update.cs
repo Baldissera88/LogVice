@@ -19,10 +19,118 @@ namespace LogVice
         public string ExeUrl;
         public string SumsUrl;
         public string Notes;
+        public DateTime CheckedUtc;
 
         public bool CanInstall
         {
             get { return Newer && SumsUrl != null && (Updates.IsInstalled ? MsiUrl != null : ExeUrl != null); }
+        }
+    }
+
+    // Where the gate reads the device from: the registry in the app, a fake in the tests. A path starts with HKLM or HKCU.
+    public interface IRegSource
+    {
+        string[] SubKeys(string path);
+        // The value as text, or null when the key or value is missing.
+        string Value(string path, string name);
+    }
+
+    public sealed class LiveRegistry : IRegSource
+    {
+        static RegistryKey Open(string path)
+        {
+            int i = path.IndexOf('\\');
+            string hive = i < 0 ? path : path.Substring(0, i);
+            string sub = i < 0 ? "" : path.Substring(i + 1);
+            RegistryKey root = hive.ToUpperInvariant() == "HKCU" ? Registry.CurrentUser : Registry.LocalMachine;
+            if (sub.Length == 0) return root;
+            return root.OpenSubKey(sub, false);
+        }
+
+        public string[] SubKeys(string path)
+        {
+            try
+            {
+                using (RegistryKey k = Open(path)) return k == null ? new string[0] : k.GetSubKeyNames();
+            }
+            catch (Exception) { return new string[0]; }
+        }
+
+        public string Value(string path, string name)
+        {
+            try
+            {
+                using (RegistryKey k = Open(path))
+                {
+                    object v = k == null ? null : k.GetValue(name);
+                    return v == null ? null : Convert.ToString(v, CultureInfo.InvariantCulture);
+                }
+            }
+            catch (Exception) { return null; }
+        }
+    }
+
+    // What decides whether LogVice may ask GitHub for updates or install one. Each one, when true, stops both.
+    public sealed class UpdateContext
+    {
+        // False until the window sets it: a check needs the LogVice window.
+        public bool Window;
+        // A screenshot run (--shot).
+        public bool Screenshot;
+        public bool WinPE;
+        public bool System;
+        // Windows setup or the Enrollment Status Page runs on this device, or the user is defaultuser0.
+        public bool Oobe;
+        public bool TaskSequence;
+        public bool Policy;
+    }
+
+    public static class UpdateGate
+    {
+        public const string PolicyKey = @"HKLM\SOFTWARE\Policies\LogVice";
+        public const string PolicyValue = "DisableUpdateCheck";
+        public const string NoWindow = "LogVice checks for updates only when it runs with its window.";
+
+        // Null when LogVice may check, otherwise why not.
+        public static string Reason(UpdateContext c)
+        {
+            if (c == null || !c.Window) return NoWindow;
+            if (c.Screenshot) return "No update check while LogVice takes a screenshot.";
+            if (c.WinPE) return "No update check in Windows PE.";
+            if (c.System) return "No update check while LogVice runs as SYSTEM.";
+            if (c.TaskSequence) return "No update check while a task sequence runs on this device.";
+            if (c.Oobe) return "No update check while Windows setup or the Enrollment Status Page runs on this device.";
+            if (c.Policy) return "Your organization has turned this off with the policy value " + PolicyValue + ".";
+            return null;
+        }
+
+        // Reads the parts of the context that come from the device itself.
+        public static void ReadDevice(UpdateContext c, IRegSource reg, string user, bool system, bool tsRunning)
+        {
+            c.System = system;
+            c.TaskSequence = tsRunning;
+            c.WinPE = Has(reg.SubKeys(@"HKLM\SYSTEM\CurrentControlSet\Control"), "MiniNT");
+            c.Oobe = On(reg, @"HKLM\SYSTEM\Setup", "OOBEInProgress") || On(reg, @"HKLM\SYSTEM\Setup", "SystemSetupInProgress")
+                || (user ?? "").StartsWith("defaultuser", StringComparison.OrdinalIgnoreCase);
+            c.Policy = On(reg, PolicyKey, PolicyValue);
+        }
+
+        public static bool BlockedByPolicy(IRegSource reg)
+        {
+            return On(reg, PolicyKey, PolicyValue);
+        }
+
+        static bool On(IRegSource reg, string path, string name)
+        {
+            long n;
+            string v = reg.Value(path, name);
+            return v != null && long.TryParse(v.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out n) && n != 0;
+        }
+
+        static bool Has(string[] names, string name)
+        {
+            foreach (string n in names) if (string.Equals(n, name, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
         }
     }
 
@@ -31,23 +139,26 @@ namespace LogVice
         public const string Repo = "Baldissera88/LogVice";
         public const string ReleasesUrl = "https://github.com/" + Repo + "/releases";
         const string ApiUrl = "https://api.github.com/repos/" + Repo + "/releases/latest";
-        const string PolicyKey = @"SOFTWARE\Policies\LogVice";
 
-        public static bool BlockedByPolicy
+        // Says why no check or download may happen now, or null. Unless the window sets it, nothing may happen.
+        public static Func<string> Gate = delegate { return UpdateGate.NoWindow; };
+
+        public static string Blocked
         {
             get
             {
                 try
                 {
-                    using (RegistryKey k = Registry.LocalMachine.OpenSubKey(PolicyKey))
-                    {
-                        if (k == null) return false;
-                        object v = k.GetValue("DisableUpdateCheck");
-                        return v is int && (int)v != 0;
-                    }
+                    Func<string> g = Gate;
+                    return g == null ? UpdateGate.NoWindow : g();
                 }
-                catch (Exception) { return false; }
+                catch (Exception) { return UpdateGate.NoWindow; }
             }
+        }
+
+        public static bool BlockedByPolicy
+        {
+            get { return UpdateGate.BlockedByPolicy(new LiveRegistry()); }
         }
 
         public static bool Enabled
@@ -66,6 +177,18 @@ namespace LogVice
             }
         }
 
+        public static DateTime? LastChecked
+        {
+            get
+            {
+                long ticks;
+                string s = Settings.Get("UpdateChecked");
+                if (string.IsNullOrEmpty(s) || !long.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out ticks)) return null;
+                try { return new DateTime(ticks, DateTimeKind.Utc); }
+                catch (ArgumentException) { return null; }
+            }
+        }
+
         public static void CheckAsync(Action<UpdateInfo> done)
         {
             ThreadPool.QueueUserWorkItem(delegate
@@ -78,6 +201,8 @@ namespace LogVice
         public static UpdateInfo Check()
         {
             UpdateInfo r = new UpdateInfo();
+            string blocked = Blocked;
+            if (blocked != null) { r.Error = blocked; return r; }
             try
             {
                 ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
@@ -94,7 +219,8 @@ namespace LogVice
                 using (StreamReader sr = new StreamReader(resp.GetResponseStream(), Encoding.UTF8))
                     json = sr.ReadToEnd();
                 Parse(json, r);
-                Settings.Set("UpdateChecked", DateTime.UtcNow.Ticks.ToString(CultureInfo.InvariantCulture));
+                r.CheckedUtc = DateTime.UtcNow;
+                Settings.Set("UpdateChecked", r.CheckedUtc.Ticks.ToString(CultureInfo.InvariantCulture));
             }
             catch (WebException ex)
             {

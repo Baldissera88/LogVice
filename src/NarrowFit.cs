@@ -45,12 +45,12 @@ namespace LogVice
     public static class HeaderFold
     {
         public const string Back = "Back", Forward = "Forward", Start = "Start", Open = "Open", Browse = "Browse", Follow = "Follow",
-            Live = "Live", Stop = "Stop", Reload = "Reload", Lookup = "Lookup", Update = "Update", Theme = "Theme", Settings = "Settings", Help = "Help";
+            Live = "Live", Stop = "Stop", Reload = "Reload", Lookup = "Lookup", Theme = "Theme", Settings = "Settings", Help = "Help";
 
-        public static readonly string[] Order = { Back, Forward, Start, Open, Browse, Follow, Live, Stop, Reload, Lookup, Update, Theme, Settings, Help };
+        public static readonly string[] Order = { Back, Forward, Start, Open, Browse, Follow, Live, Stop, Reload, Lookup, Theme, Settings, Help };
 
         // The first to fold first. Back, Forward, Start, Open, Settings, Help and Stop always stay.
-        public static readonly string[] FoldOrder = { Reload, Lookup, Follow, Browse, Live, Theme, Update };
+        public static readonly string[] FoldOrder = { Reload, Lookup, Follow, Browse, Live, Theme };
 
         // names and widths run in step: the buttons that are shown, with their margins. Returns the names that fold, first to go first.
         public static List<string> Folded(string[] names, int[] widths, int moreWidth, int room)

@@ -99,8 +99,14 @@ namespace LogVice
             Menus.Add(m, "Keyboard shortcuts", delegate { ShowAbout(AboutForm.ShortcutsPart); });
             Menus.Add(m, "Command line", delegate { ShowAbout(AboutForm.CommandLinePart); });
             Menus.Separator(m);
-            Menus.Add(m, "Report a problem", null).Enabled = false;
-            Menus.Add(m, "Suggest a feature", null).Enabled = false;
+            string why = FeedbackBlocked();
+            ToolStripMenuItem report = Menus.Add(m, "Report a problem", delegate { OpenProblem(); });
+            ToolStripMenuItem feature = Menus.Add(m, "Suggest a feature", delegate { OpenFeature(); });
+            if (why != null)
+            {
+                report.Enabled = feature.Enabled = false;
+                report.ToolTipText = feature.ToolTipText = why;
+            }
             Menus.Separator(m);
             Menus.Add(m, "LogVice on GitHub", delegate { OpenLink(GitHubUrl); });
             Menus.Add(m, "About LogVice", delegate { ShowAbout(AboutForm.AboutPart); });

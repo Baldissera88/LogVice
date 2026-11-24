@@ -20,6 +20,7 @@ namespace LogVice
             MinimizeBox = false;
             MaximizeBox = false;
             ShowIcon = false;
+            DialogFit.Keep(this);
             ShowInTaskbar = false;
             KeyPreview = true;
             Size = new Size(Dpi.S(580), Dpi.S(380));
@@ -113,6 +114,7 @@ namespace LogVice
             MinimizeBox = false;
             MaximizeBox = false;
             ShowIcon = false;
+            DialogFit.Keep(this);
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
             KeyPreview = true;
