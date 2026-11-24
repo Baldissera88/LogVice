@@ -469,53 +469,61 @@ namespace LogVice
             get { return @"HKEY_CURRENT_USER\" + KeyPath; }
         }
 
+        // The paths of the recent entries, the newest first.
         public static List<string[]> Recent()
         {
             List<string[]> list = new List<string[]>();
+            foreach (RecentEntry e in RecentEntries()) list.Add(e.Paths);
+            return list;
+        }
+
+        // The recent entries as stored, the newest first, with their pins.
+        public static List<RecentEntry> RecentEntries()
+        {
+            List<string> raw = new List<string>();
             try
             {
                 using (RegistryKey k = Registry.CurrentUser.OpenSubKey(KeyPath))
                 {
                     string[] v = k == null ? null : k.GetValue("Recent") as string[];
-                    if (v == null) return list;
-                    foreach (string e in v)
-                    {
-                        if (string.IsNullOrEmpty(e)) continue;
-                        list.Add(e.Split('|'));
-                    }
+                    if (v != null) raw.AddRange(v);
                 }
             }
             catch (Exception) { }
-            return list;
+            return RecentList.ParseAll(raw);
         }
 
         public static void AddRecent(string[] paths)
         {
-            if (paths == null || paths.Length == 0) return;
-            string entry = string.Join("|", paths);
-            List<string> keep = new List<string>();
-            keep.Add(entry);
-            foreach (string[] e in Recent())
-            {
-                string s = string.Join("|", e);
-                if (!string.Equals(s, entry, StringComparison.OrdinalIgnoreCase) && keep.Count < 10) keep.Add(s);
-            }
+            SaveRecent(RecentList.Add(RecentEntries(), paths));
+        }
+
+        public static void PinRecent(string[] paths, bool pinned)
+        {
+            SaveRecent(RecentList.SetPinned(RecentEntries(), paths, pinned));
+        }
+
+        public static void RemoveRecent(string[] paths)
+        {
+            SaveRecent(RecentList.Remove(RecentEntries(), paths));
+        }
+
+        // Clears the list except for the pinned entries.
+        public static void ClearRecent()
+        {
+            List<RecentEntry> keep = new List<RecentEntry>();
+            foreach (RecentEntry e in RecentEntries()) if (e.Pinned) keep.Add(e);
             SaveRecent(keep);
         }
 
-        public static void ClearRecent()
-        {
-            SaveRecent(new List<string>());
-        }
-
-        static void SaveRecent(List<string> entries)
+        static void SaveRecent(List<RecentEntry> entries)
         {
             if (ReadOnly) return;
             try
             {
                 using (RegistryKey k = Registry.CurrentUser.CreateSubKey(KeyPath))
                 {
-                    if (k != null) k.SetValue("Recent", entries.ToArray(), RegistryValueKind.MultiString);
+                    if (k != null) k.SetValue("Recent", RecentList.FormatAll(entries).ToArray(), RegistryValueKind.MultiString);
                 }
             }
             catch (Exception) { }
@@ -563,7 +571,8 @@ namespace LogVice
     public enum Glyph
     {
         None, Open, Merge, Reload, Live, Lookup, Search, Filter, Up, Down, ErrUp, ErrDown, Copy, Moon, Sun, Close, Chevron, Recent, Folder, Stop, Check,
-        Gear, Back, Computer, File, Server, Plus, Info, Browse, Palette, Text, Rows, Warning, Home, User, Highlight, Shield, Events
+        Gear, Back, Computer, File, Server, Plus, Info, Browse, Palette, Text, Rows, Warning, Home, User, Highlight, Shield, Events,
+        Forward, Help, Pin, Keyboard, Code, More, Follow, Github
     }
 
     public static class Draw
@@ -943,6 +952,48 @@ namespace LogVice
                         g.FillEllipse(b, 4f, 10.3f, 1.7f, 1.7f);
                         g.DrawLine(p, 7.4f, 8f, 11.8f, 8f);
                         g.DrawLine(p, 7.4f, 11.2f, 11.8f, 11.2f);
+                        break;
+                    case Glyph.Forward:
+                        g.DrawLine(p, 2.5f, 8f, 13.2f, 8f);
+                        g.DrawLines(p, new PointF[] { P(8.6f, 3.4f), P(13.2f, 8f), P(8.6f, 12.6f) });
+                        break;
+                    case Glyph.Help:
+                        g.DrawEllipse(p, 1.8f, 1.8f, 12.4f, 12.4f);
+                        g.DrawArc(p, 5.8f, 4.4f, 4.4f, 4.2f, 180, 235);
+                        g.DrawLine(p, 8f, 8.6f, 8f, 9.6f);
+                        g.FillEllipse(b, 7.2f, 10.6f, 1.6f, 1.6f);
+                        break;
+                    case Glyph.Pin:
+                        g.DrawLines(p, new PointF[] { P(5.4f, 2.2f), P(10.6f, 2.2f), P(9.8f, 7.4f), P(12f, 9.4f), P(4f, 9.4f), P(6.2f, 7.4f), P(5.4f, 2.2f) });
+                        g.DrawLine(p, 8f, 9.6f, 8f, 14.4f);
+                        break;
+                    case Glyph.Keyboard:
+                        using (GraphicsPath gp = Round(new RectangleF(1.4f, 3.6f, 13.2f, 8.8f), 1.6f)) g.DrawPath(p, gp);
+                        g.FillEllipse(b, 3.6f, 5.8f, 1.3f, 1.3f);
+                        g.FillEllipse(b, 6.1f, 5.8f, 1.3f, 1.3f);
+                        g.FillEllipse(b, 8.6f, 5.8f, 1.3f, 1.3f);
+                        g.FillEllipse(b, 11.1f, 5.8f, 1.3f, 1.3f);
+                        g.DrawLine(p, 4.6f, 9.6f, 11.4f, 9.6f);
+                        break;
+                    case Glyph.Code:
+                        g.DrawLines(p, new PointF[] { P(5.4f, 4f), P(1.6f, 8f), P(5.4f, 12f) });
+                        g.DrawLines(p, new PointF[] { P(10.6f, 4f), P(14.4f, 8f), P(10.6f, 12f) });
+                        g.DrawLine(p, 9.2f, 2.6f, 6.8f, 13.4f);
+                        break;
+                    case Glyph.More:
+                        g.FillEllipse(b, 2.2f, 6.9f, 2.2f, 2.2f);
+                        g.FillEllipse(b, 6.9f, 6.9f, 2.2f, 2.2f);
+                        g.FillEllipse(b, 11.6f, 6.9f, 2.2f, 2.2f);
+                        break;
+                    case Glyph.Follow:
+                        g.DrawLines(p, new PointF[] { P(3.6f, 4f), P(8f, 4f), P(8f, 12f), P(12.4f, 12f) });
+                        g.DrawEllipse(p, 1.4f, 2.2f, 3.6f, 3.6f);
+                        g.DrawEllipse(p, 11f, 10.2f, 3.6f, 3.6f);
+                        break;
+                    case Glyph.Github:
+                        g.DrawEllipse(p, 1.8f, 1.8f, 12.4f, 12.4f);
+                        g.DrawLines(p, new PointF[] { P(6.2f, 13.6f), P(6.2f, 10.6f), P(9.8f, 10.6f), P(9.8f, 13.6f) });
+                        g.DrawLines(p, new PointF[] { P(4.6f, 9f), P(6.2f, 10.6f) });
                         break;
                     case Glyph.Text:
                         g.DrawLines(p, new PointF[] { P(2.6f, 13.4f), P(6.6f, 2.6f), P(10.6f, 13.4f) });

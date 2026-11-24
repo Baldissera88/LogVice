@@ -1,6 +1,7 @@
 namespace LogVice
 {
     using System;
+    using System.Collections.Generic;
     using System.Drawing;
     using System.Drawing.Imaging;
     using System.IO;
@@ -12,6 +13,7 @@ namespace LogVice
         bool demoNext, demoMode;
         Timer shotTimer;
         bool shotReady;
+        Form shotPage;
         int shotWaited;
 
         // Writes the demo logs and opens the ConfigMgr and Intune ones, merged by time.
@@ -81,9 +83,66 @@ namespace LogVice
                 }
             }
             // The settings page of this version is a view in the window. A later version replaces it with a dialog.
-            if (Program.Options.Page == "settings") OpenSettings(0);
+            string page = Program.Options.Page;
+            if (page == "settings") OpenSettings(0);
+            else if (page == "welcome") { ShotWelcomeData(); ShowWelcome(); }
+            else if (page == AboutForm.AboutPart || page == AboutForm.ShortcutsPart || page == AboutForm.CommandLinePart)
+            {
+                shotPage = MakeAbout(page);
+                shotPage.StartPosition = FormStartPosition.Manual;
+                shotPage.Location = new Point(Left + Dpi.S(40), Top + Dpi.S(30));
+                if (!Program.Options.Size.IsEmpty) shotPage.Size = new Size(Math.Min(Dpi.S(900), Width - Dpi.S(80)), Math.Min(Dpi.S(760), Height - Dpi.S(60)));
+                shotPage.Show(this);
+                Application.DoEvents();
+            }
             // Keep the pointer out of the picture, so nothing shows as hovered.
             try { Cursor.Position = new Point(Screen.PrimaryScreen.Bounds.Right - 2, Screen.PrimaryScreen.Bounds.Bottom - 2); } catch (Exception) { }
+        }
+
+        // The start page of a screenshot lists made-up recent entries and folders, so it shows what a used page looks like.
+        void ShotWelcomeData()
+        {
+            try
+            {
+                string[] all = Demo.Write();
+                string[] cm = Demo.CmPaths(all);
+                List<RecentEntry> list = new List<RecentEntry>();
+                RecentEntry merged = new RecentEntry();
+                merged.Paths = cm;
+                merged.Pinned = true;
+                RecentEntry cbs = new RecentEntry();
+                cbs.Paths = new string[] { Array.Find(all, delegate (string p) { return Path.GetFileName(p) == "CBS.log"; }) };
+                RecentEntry app = new RecentEntry();
+                app.Paths = new string[] { "evt:Application" };
+                RecentEntry one = new RecentEntry();
+                one.Paths = new string[] { cm[0] };
+                list.Add(one);
+                list.Add(merged);
+                list.Add(cbs);
+                list.Add(app);
+                start.SetRecent(list);
+            }
+            catch (Exception) { }
+            List<LogLocation> locs = new List<LogLocation>();
+            string[][] rows =
+            {
+                new string[] { "Client logs", LogLocations.ConfigMgr, @"C:\Windows\CCM\Logs", "42" },
+                new string[] { "Intune Management Extension", LogLocations.Intune, @"C:\ProgramData\Microsoft\IntuneManagementExtension\Logs", "9" },
+                new string[] { "Windows Update", LogLocations.Windows, @"C:\Windows\Logs\WindowsUpdate", "17" },
+                new string[] { "Windows", LogLocations.Windows, @"C:\Windows\Logs\CBS", "6" }
+            };
+            foreach (string[] r in rows)
+            {
+                LogLocation l = new LogLocation();
+                l.Name = r[0];
+                l.Group = r[1];
+                l.Path = r[2];
+                l.FileCount = int.Parse(r[3]);
+                l.Newest = DateTime.Now.AddMinutes(-12);
+                l.Glyph = Glyph.Folder;
+                locs.Add(l);
+            }
+            start.SetLocations(locs);
         }
 
         void ShotSave()
@@ -92,7 +151,7 @@ namespace LogVice
             string dir = Path.GetDirectoryName(Path.GetFullPath(path));
             if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
             Refresh();
-            Rectangle area = RectangleToScreen(ClientRectangle);
+            Rectangle area = shotPage != null ? shotPage.RectangleToScreen(shotPage.ClientRectangle) : RectangleToScreen(ClientRectangle);
             using (Bitmap bmp = new Bitmap(Math.Max(1, area.Width), Math.Max(1, area.Height)))
             {
                 // The picture is taken from the screen: DrawToBitmap does not draw the controls of a form on Mono.

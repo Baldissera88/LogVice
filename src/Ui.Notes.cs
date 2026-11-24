@@ -541,15 +541,15 @@ namespace LogVice
 
     public sealed class InfoBar : FluentControl
     {
-        public readonly FluentButton Action;
-        readonly FluentButton dismiss;
+        public readonly FlatButton Action;
+        readonly FlatButton dismiss;
         string message = "";
 
         public InfoBar()
         {
-            Action = new FluentButton(ButtonKind.Standard, Glyph.None, "What's new");
-            dismiss = new FluentButton(ButtonKind.Subtle, Glyph.Close, "");
-            dismiss.Width = Dpi.S(32);
+            Action = new FlatButton("What's new", Glyph.None);
+            Action.Outline = true;
+            dismiss = new FlatButton("", Glyph.Close);
             dismiss.Click += delegate { Visible = false; };
             Controls.Add(Action);
             Controls.Add(dismiss);
@@ -581,7 +581,6 @@ namespace LogVice
             if (Action == null || dismiss == null) return;
             int h = Height - 1;
             dismiss.Location = new Point(Width - Dpi.S(12) - dismiss.Width, (h - dismiss.Height) / 2);
-            Action.Width = Action.GetPreferredSize(Size.Empty).Width;
             Action.Location = new Point(dismiss.Left - Dpi.S(8) - Action.Width, (h - Action.Height) / 2);
         }
 

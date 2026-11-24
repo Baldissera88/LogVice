@@ -70,7 +70,7 @@ namespace LogVice
 
     public enum ButtonKind
     {
-        Standard, Accent, Subtle, Chip
+        Standard, Accent, Subtle
     }
 
     public class FluentButton : FluentControl
@@ -80,7 +80,7 @@ namespace LogVice
         public Glyph Trailing;
         public bool Toggle;
         public bool CanCompact;
-        public int Severity;
+        // A count after the text, such as the number of rows a highlight matches.
         public string Count = "";
         public string Tip = "";
         public Color GlyphColor = Color.Empty;
@@ -97,7 +97,7 @@ namespace LogVice
             Font = Fonts.Ui;
             Text = text;
             TabStop = true;
-            Height = Dpi.S(kind == ButtonKind.Chip ? 30 : 32);
+            Height = Dpi.S(32);
             Width = GetPreferredSize(Size.Empty).Width;
         }
 
@@ -144,21 +144,19 @@ namespace LogVice
 
         bool IconOnly
         {
-            get { return Glyph != Glyph.None && (compact || string.IsNullOrEmpty(Text)) && Kind != ButtonKind.Chip; }
+            get { return Glyph != Glyph.None && (compact || string.IsNullOrEmpty(Text)); }
         }
 
         public override Size GetPreferredSize(Size proposedSize)
         {
             int h = Height > 0 ? Height : Dpi.S(32);
             if (IconOnly) return new Size(h + (Trailing != Glyph.None ? Dpi.S(14) : 0), h);
-            int w = Dpi.S(Kind == ButtonKind.Chip ? 12 : 12);
+            int w = Dpi.S(12);
             if (Glyph != Glyph.None) w += Dpi.S(16) + Dpi.S(8);
-            if (Kind == ButtonKind.Chip) w += Dpi.S(8) + Dpi.S(7);
-            bool showText = !(Kind == ButtonKind.Chip && compact);
-            if (showText) w += Draw.Measure(Text, Font).Width;
-            if (Count.Length > 0) w += (showText ? Dpi.S(6) : 0) + Draw.Measure(Count, theme.Num(Fonts.UiSemibold)).Width;
+            w += Draw.Measure(Text, Font).Width;
+            if (Count.Length > 0) w += Dpi.S(6) + Draw.Measure(Count, theme.Num(Fonts.UiSemibold)).Width;
             if (Trailing != Glyph.None) w += Dpi.S(6) + Dpi.S(14);
-            w += Dpi.S(Kind == ButtonKind.Chip ? 12 : 12);
+            w += Dpi.S(12);
             return new Size(w, h);
         }
 
@@ -203,7 +201,7 @@ namespace LogVice
             Color surface = Surface;
             g.Clear(surface);
             RectangleF r = new RectangleF(0, 0, Width, Height);
-            float rad = Kind == ButtonKind.Chip ? Height / 2f : Dpi.F(4);
+            float rad = Dpi.F(5);
             bool en = Enabled;
             Color fill = Color.Empty, stroke = Color.Empty, fg = theme.Text, glyphC = theme.Text2;
             switch (Kind)
@@ -213,19 +211,15 @@ namespace LogVice
                     fg = glyphC = en ? theme.OnAccent : theme.Card;
                     break;
                 case ButtonKind.Standard:
+                    fill = pressed ? Theme.Over(surface, theme.Pressed) : hot ? Theme.Over(surface, theme.Hover) : Color.Empty;
+                    stroke = hot && en ? theme.Text3 : theme.Divider;
+                    if (isChecked)
                     {
-                        Color b = theme.IsDark ? Theme.Hex(0x2C3037) : Theme.Hex(0xFBFCFD);
-                        if (surface == theme.Card) b = theme.IsDark ? Theme.Hex(0x31353D) : Theme.Hex(0xFFFFFF);
-                        fill = pressed ? Theme.Over(b, theme.Pressed) : hot ? Theme.Over(b, theme.Hover) : b;
-                        stroke = theme.FieldStroke;
-                        if (isChecked)
-                        {
-                            fill = Theme.Mix(surface, theme.Accent, theme.IsDark ? 0.2f : 0.13f);
-                            stroke = Theme.Mix(fill, theme.Accent, 0.45f);
-                            fg = glyphC = theme.Accent;
-                        }
-                        break;
+                        fill = theme.AccentSoft;
+                        stroke = theme.Accent;
+                        fg = glyphC = theme.Accent;
                     }
+                    break;
                 case ButtonKind.Subtle:
                     fill = pressed ? Theme.Over(surface, theme.Pressed) : hot ? Theme.Over(surface, theme.Hover) : Color.Empty;
                     if (isChecked)
@@ -234,24 +228,6 @@ namespace LogVice
                         fg = glyphC = theme.Accent;
                     }
                     break;
-                case ButtonKind.Chip:
-                    {
-                        Color sevFg = Severity == 3 ? theme.ErrFg : Severity == 2 ? theme.WarnFg : theme.Text3;
-                        Color sevBg = Severity == 3 ? theme.ErrBg : Severity == 2 ? theme.WarnBg : theme.CardAlt;
-                        if (isChecked)
-                        {
-                            fill = hot ? Theme.Mix(sevBg, sevFg, 0.12f) : sevBg;
-                            stroke = Theme.Mix(sevBg, sevFg, theme.IsDark ? 0.35f : 0.3f);
-                        }
-                        else
-                        {
-                            fill = hot ? Theme.Over(surface, theme.Hover) : Color.Empty;
-                            stroke = theme.Divider;
-                            fg = theme.Text3;
-                        }
-                        glyphC = sevFg;
-                        break;
-                    }
             }
             if (!en)
             {
@@ -279,26 +255,8 @@ namespace LogVice
                     Draw.Icon(g, Glyph, new RectangleF(x, (Height - gs) / 2f, gs, gs), glyphC);
                     x += gs + Dpi.S(8);
                 }
-                if (Kind == ButtonKind.Chip)
-                {
-                    float d = Dpi.F(8);
-                    RectangleF dot = new RectangleF(x, (Height - d) / 2f, d, d);
-                    SmoothingMode old = g.SmoothingMode;
-                    g.SmoothingMode = SmoothingMode.AntiAlias;
-                    if (isChecked)
-                    {
-                        using (SolidBrush b = new SolidBrush(glyphC)) g.FillEllipse(b, dot);
-                    }
-                    else
-                    {
-                        using (Pen p = new Pen(glyphC, Dpi.F(1.5f))) g.DrawEllipse(p, dot.X + 0.75f, dot.Y + 0.75f, dot.Width - 1.5f, dot.Height - 1.5f);
-                    }
-                    g.SmoothingMode = old;
-                    x += (int)d + Dpi.S(7);
-                }
                 int right = Width - Dpi.S(12) - (Trailing != Glyph.None ? Dpi.S(20) : 0);
-                bool showText = !(Kind == ButtonKind.Chip && compact);
-                if (showText && !string.IsNullOrEmpty(Text))
+                if (!string.IsNullOrEmpty(Text))
                 {
                     int tw = Draw.Measure(Text, Font).Width;
                     Draw.Text(g, Text, Font, new Rectangle(x, 0, Math.Max(0, Math.Min(tw + 2, right - x)), Height), fg, Draw.Line);
@@ -642,9 +600,8 @@ namespace LogVice
             Graphics g = e.Graphics;
             g.Clear(Parent != null ? Parent.BackColor : theme.Bg);
             RectangleF r = new RectangleF(0, 0, Width, Height);
-            Draw.Fill(g, r, Dpi.F(8), theme.Card);
-            Draw.Elevation(g, r, Dpi.F(8), theme);
-            Draw.Stroke(g, r, Dpi.F(8), theme.Stroke, 1f);
+            Draw.Fill(g, r, Dpi.F(7), theme.Card);
+            Draw.Stroke(g, r, Dpi.F(7), theme.Divider, 1f);
         }
     }
 
@@ -881,7 +838,7 @@ namespace LogVice
 
     public sealed class StatusBar : FluentControl
     {
-        public string LeftText = "", MidText = "", RightText = "";
+        public string LeftText = "", RightText = "";
         public float Progress = -1;
 
         public StatusBar()
@@ -904,12 +861,9 @@ namespace LogVice
             }
             // The numbers in the status bar are drawn in the font for numbers of the theme.
             Font f = theme.Num(Fonts.Small);
-            int pad = Dpi.S(16);
-            int lw = Draw.Measure(LeftText, f).Width;
-            int rw = Math.Min(Draw.Measure(RightText, f).Width + 2, Width / 2);
-            Draw.Text(g, LeftText, f, new Rectangle(pad, 0, lw + 2, Height), theme.Text2, Draw.Line);
-            int mx = pad + lw + (lw > 0 ? Dpi.S(20) : 0);
-            Draw.Text(g, MidText, f, new Rectangle(mx, 0, Math.Max(0, Width - pad - rw - Dpi.S(20) - mx), Height), theme.Text3, Draw.Line);
+            int pad = Dpi.S(18);
+            int rw = Math.Min(Draw.Measure(RightText, f).Width + 2, Width * 3 / 4);
+            Draw.Text(g, LeftText, f, new Rectangle(pad, 0, Math.Max(0, Width - pad * 2 - rw - Dpi.S(20)), Height), theme.Text3, Draw.Line);
             Draw.Text(g, RightText, f, new Rectangle(Width - pad - rw, 0, rw, Height), theme.Text3, Draw.Line | TextFormatFlags.Right);
         }
     }
@@ -972,301 +926,6 @@ namespace LogVice
                 Draw.Text(g, title, Fonts.Title, new Rectangle(r.X, cy - Dpi.S(6), r.Width, Fonts.Title.Height), theme.Text, Draw.Line | TextFormatFlags.HorizontalCenter);
                 Draw.Text(g, sub, Fonts.Ui, new Rectangle(r.X + Dpi.S(16), cy - Dpi.S(6) + Fonts.Title.Height + Dpi.S(4), r.Width - Dpi.S(32), Fonts.Ui.Height * 2 + 4), theme.Text2, Draw.Wrap | TextFormatFlags.HorizontalCenter);
             }
-        }
-    }
-
-    public sealed class RecentItem : FluentControl
-    {
-        public readonly string[] Paths;
-        readonly string name, detail;
-        readonly bool exists;
-
-        public RecentItem(string[] paths)
-        {
-            Paths = paths;
-            name = Settings.RecentLabel(paths, out detail);
-            exists = true;
-            foreach (string p in paths)
-            {
-                if (!EventLogs.Available(p)) exists = false;
-            }
-            Height = Dpi.S(38);
-            TabStop = true;
-            Cursor = Cursors.Hand;
-        }
-
-        protected override void OnKeyDown(KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Space) { e.Handled = true; OnClick(EventArgs.Empty); }
-            base.OnKeyDown(e);
-        }
-
-        protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
-        protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
-
-        protected override void OnMouseWheel(MouseEventArgs e)
-        {
-            StartPage sp = Parent as StartPage;
-            if (sp != null) sp.ScrollBy(e.Delta);
-            base.OnMouseWheel(e);
-        }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            Graphics g = e.Graphics;
-            Color surface = Surface;
-            g.Clear(surface);
-            RectangleF r = new RectangleF(0, 0, Width, Height);
-            if (hot || pressed) Draw.Fill(g, r, Dpi.F(4), Theme.Over(surface, pressed ? theme.Pressed : theme.Hover));
-            int s = Dpi.S(16);
-            Draw.Icon(g, Glyph.Recent, new RectangleF(Dpi.S(10), (Height - s) / 2f, s, s), theme.Text3);
-            int x = Dpi.S(10) + s + Dpi.S(12);
-            int nw = Math.Min(Draw.Measure(name, Fonts.Ui).Width + 2, (Width - x) * 2 / 3);
-            Draw.Text(g, name, Fonts.Ui, new Rectangle(x, 0, nw, Height), exists ? theme.Text : theme.Text3, Draw.Line);
-            x += nw + Dpi.S(12);
-            Draw.Text(g, exists ? detail : "Not found · " + detail, Fonts.Small, new Rectangle(x, 0, Math.Max(0, Width - x - Dpi.S(10)), Height), theme.Text3, Draw.Line | TextFormatFlags.PathEllipsis);
-            if (Focused && ShowFocusCues) Draw.Stroke(g, r, Dpi.F(4), theme.Text, Dpi.F(2));
-        }
-    }
-
-    public sealed class StartPage : FluentControl
-    {
-        public readonly FluentButton OpenButton, BrowseButton, FollowButton, ResumeButton;
-        readonly List<LocationCard> cards = new List<LocationCard>();
-        readonly List<RecentItem> recent = new List<RecentItem>();
-        public event Action<string[]> OpenRecent;
-        public event Action<LogLocation> OpenLocation;
-        int markY, titleY, descY, descH, locY, recentY, footY, contentH, scrollY;
-        bool searching = true;
-        const string Desc = "Drop log files anywhere in this window, or press Ctrl+O. Hold Ctrl while dropping to merge with what is already open.";
-        const string Foot = "Reads CMTrace and Intune IME, SMS trace, CBS, DISM and Panther, Windows Update ETL traces, Windows event logs and plain text logs. Files are opened read-only and never leave this computer.";
-
-        public StartPage()
-        {
-            TabStop = false;
-            SetStyle(ControlStyles.Selectable, false);
-            AllowDrop = true;
-            OpenButton = new FluentButton(ButtonKind.Accent, Glyph.Open, "Open logs");
-            OpenButton.Width = OpenButton.GetPreferredSize(Size.Empty).Width;
-            BrowseButton = new FluentButton(ButtonKind.Standard, Glyph.Browse, "Browse logs");
-            BrowseButton.Tip = "Find ConfigMgr, Intune and Windows logs on this or another computer (Ctrl+B)";
-            BrowseButton.Width = BrowseButton.GetPreferredSize(Size.Empty).Width;
-            FollowButton = new FluentButton(ButtonKind.Standard, Glyph.Search, "Follow an item");
-            FollowButton.Tip = "Pick an app, update, package or baseline from the ConfigMgr client and see every log line about it in one timeline (Ctrl+I)";
-            FollowButton.Width = FollowButton.GetPreferredSize(Size.Empty).Width;
-            ResumeButton = new FluentButton(ButtonKind.Standard, Glyph.Back, "Back to the log");
-            ResumeButton.Tip = "Return to the logs that are open (Esc)";
-            ResumeButton.Visible = false;
-            Controls.Add(OpenButton);
-            Controls.Add(BrowseButton);
-            Controls.Add(FollowButton);
-            Controls.Add(ResumeButton);
-        }
-
-        public void SetResume(string label)
-        {
-            if (string.IsNullOrEmpty(label))
-            {
-                ResumeButton.Visible = false;
-            }
-            else
-            {
-                if (label.Length > 44) label = label.Substring(0, 43) + "\u2026";
-                ResumeButton.Text = "Back to " + label;
-                ResumeButton.Width = ResumeButton.GetPreferredSize(Size.Empty).Width;
-                ResumeButton.Visible = true;
-            }
-            PerformLayout();
-            Invalidate();
-        }
-
-        public IEnumerable<FluentButton> Buttons
-        {
-            get
-            {
-                yield return OpenButton;
-                yield return BrowseButton;
-                yield return FollowButton;
-                yield return ResumeButton;
-            }
-        }
-
-        public void ScrollBy(int delta)
-        {
-            int max = Math.Max(0, contentH - Height);
-            int n = Math.Max(0, Math.Min(max, scrollY - delta / 120 * Dpi.S(60)));
-            if (n == scrollY) return;
-            scrollY = n;
-            PerformLayout();
-        }
-
-        protected override void OnMouseWheel(MouseEventArgs e)
-        {
-            ScrollBy(e.Delta);
-            base.OnMouseWheel(e);
-        }
-
-        public void SetLocations(List<LogLocation> list)
-        {
-            SuspendLayout();
-            foreach (LocationCard c in cards) { Controls.Remove(c); c.Dispose(); }
-            cards.Clear();
-            searching = list == null;
-            if (list != null)
-            {
-                int n = 0;
-                foreach (LogLocation l in list)
-                {
-                    if (n++ >= 10) break;
-                    LocationCard card = new LocationCard(l);
-                    card.ApplyTheme(theme);
-                    LogLocation loc = l;
-                    card.Click += delegate { if (OpenLocation != null) OpenLocation(loc); };
-                    cards.Add(card);
-                    Controls.Add(card);
-                }
-            }
-            ResumeLayout(true);
-            Invalidate();
-        }
-
-        public void SetRecent(List<string[]> list)
-        {
-            SuspendLayout();
-            foreach (RecentItem r in recent) { Controls.Remove(r); r.Dispose(); }
-            recent.Clear();
-            int n = 0;
-            foreach (string[] paths in list)
-            {
-                if (n++ >= 5) break;
-                RecentItem item = new RecentItem(paths);
-                item.ApplyTheme(theme);
-                string[] p = paths;
-                item.Click += delegate { if (OpenRecent != null) OpenRecent(p); };
-                recent.Add(item);
-                Controls.Add(item);
-            }
-            ResumeLayout(true);
-            Invalidate();
-        }
-
-        public override void ApplyTheme(Theme t)
-        {
-            base.ApplyTheme(t);
-            BackColor = t.Card;
-            foreach (Control c in Controls)
-            {
-                IThemed th = c as IThemed;
-                if (th != null) th.ApplyTheme(t);
-            }
-        }
-
-        int ColumnWidth()
-        {
-            int cw = Math.Min(Dpi.S(760), Width - Dpi.S(64));
-            if (cw < Dpi.S(200)) cw = Math.Max(0, Width - Dpi.S(32));
-            return cw;
-        }
-
-        protected override void OnLayout(LayoutEventArgs e)
-        {
-            base.OnLayout(e);
-            int cw = ColumnWidth();
-            int x0 = (Width - cw) / 2;
-            descH = Draw.WrapHeight(Desc, Fonts.Ui, cw);
-            int cols = cw >= Dpi.S(560) ? 2 : 1;
-            int gap = Dpi.S(8);
-            int cardW = (cw - gap * (cols - 1)) / cols, cardH = Dpi.S(62);
-            int cardRows = (cards.Count + cols - 1) / cols;
-            int locBlock = Dpi.S(28) + Fonts.SmallSemibold.Height + Dpi.S(8) + (cards.Count > 0 ? cardRows * (cardH + gap) - gap : Fonts.Ui.Height);
-            int itemH = Dpi.S(38);
-            int recentBlock = recent.Count > 0 ? Dpi.S(28) + Fonts.SmallSemibold.Height + Dpi.S(8) + recent.Count * itemH : 0;
-            int footH = Draw.WrapHeight(Foot, Fonts.Small, cw);
-            int total = Dpi.S(64) + Dpi.S(18) + Fonts.SmallSemibold.Height + Dpi.S(4) + Fonts.Hero.Height + Dpi.S(8) + descH + Dpi.S(20) + OpenButton.Height + locBlock + recentBlock + Dpi.S(28) + footH + Dpi.S(28);
-            int rowW = OpenButton.Width + BrowseButton.Width + FollowButton.Width + Dpi.S(16);
-            if (ResumeButton.Visible && x0 + rowW + Dpi.S(8) + ResumeButton.Width > x0 + cw) total += OpenButton.Height + Dpi.S(8);
-            contentH = total + Dpi.S(28);
-            int max = Math.Max(0, contentH - Height);
-            if (scrollY > max) scrollY = max;
-            int y = Math.Max(Dpi.S(28), (Height - total) / 2) - scrollY;
-            markY = y;
-            y += Dpi.S(64) + Dpi.S(18) + Fonts.SmallSemibold.Height + Dpi.S(4);
-            titleY = y;
-            y += Fonts.Hero.Height + Dpi.S(8);
-            descY = y;
-            y += descH + Dpi.S(20);
-            OpenButton.SetBounds(x0, y, OpenButton.Width, OpenButton.Height);
-            BrowseButton.SetBounds(x0 + OpenButton.Width + Dpi.S(8), y, BrowseButton.Width, BrowseButton.Height);
-            FollowButton.SetBounds(BrowseButton.Right + Dpi.S(8), y, FollowButton.Width, FollowButton.Height);
-            if (ResumeButton.Visible)
-            {
-                int rx = x0 + rowW + Dpi.S(8);
-                if (rx + ResumeButton.Width > x0 + cw) { y += OpenButton.Height + Dpi.S(8); rx = x0; }
-                ResumeButton.SetBounds(rx, y, Math.Min(ResumeButton.Width, cw), ResumeButton.Height);
-            }
-            y += OpenButton.Height + Dpi.S(28);
-            locY = y;
-            y += Fonts.SmallSemibold.Height + Dpi.S(8);
-            for (int i = 0; i < cards.Count; i++)
-            {
-                int c = i % cols, r = i / cols;
-                cards[i].SetBounds(x0 + c * (cardW + gap), y + r * (cardH + gap), cardW, cardH);
-            }
-            y += cards.Count > 0 ? cardRows * (cardH + gap) - gap : Fonts.Ui.Height;
-            if (recent.Count > 0)
-            {
-                y += Dpi.S(28);
-                recentY = y;
-                y += Fonts.SmallSemibold.Height + Dpi.S(8);
-                foreach (RecentItem r in recent)
-                {
-                    r.SetBounds(x0 - Dpi.S(10), y, cw + Dpi.S(20), itemH);
-                    y += itemH;
-                }
-            }
-            footY = y + Dpi.S(28);
-            Invalidate();
-        }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            Graphics g = e.Graphics;
-            g.Clear(Surface);
-            RectangleF card = new RectangleF(0, 0, Width, Height);
-            Draw.Fill(g, card, Dpi.F(8), theme.Card);
-            using (System.Drawing.Drawing2D.GraphicsPath clip = Draw.Round(card, Dpi.F(8)))
-            {
-                Region old = g.Clip;
-                g.SetClip(clip);
-                float gh = Math.Max(Dpi.S(80), titleY + Fonts.Hero.Height + Dpi.S(40));
-                RectangleF band = new RectangleF(0, 0, Width, gh);
-                using (System.Drawing.Drawing2D.LinearGradientBrush lb = new System.Drawing.Drawing2D.LinearGradientBrush(new RectangleF(0, -1, Width, gh + 2), theme.Glow, theme.Card, 90f))
-                    g.FillRectangle(lb, band);
-                g.Clip = old;
-            }
-            int cw = ColumnWidth();
-            int x0 = (Width - cw) / 2;
-            Draw.AppMark(g, new RectangleF(x0, markY, Dpi.S(64), Dpi.S(64)), theme);
-            Draw.Text(g, "LOGVICE  \u00B7  " + Program.Version, Fonts.SmallSemibold, new Rectangle(x0, titleY - Fonts.SmallSemibold.Height - Dpi.S(4), cw, Fonts.SmallSemibold.Height + 2), theme.Accent, Draw.Line);
-            Draw.Text(g, ResumeButton.Visible ? "Open another log" : "Open a log to get started", Fonts.Hero, new Rectangle(x0, titleY, cw, Fonts.Hero.Height), theme.Text, Draw.Line);
-            Draw.Text(g, Desc, Fonts.Ui, new Rectangle(x0, descY, cw, descH + 2), theme.Text2, Draw.Wrap);
-            Draw.Text(g, "Log folders on this computer", Fonts.SmallSemibold, new Rectangle(x0, locY, cw, Fonts.SmallSemibold.Height + 2), theme.Text3, Draw.Line);
-            if (cards.Count == 0)
-                Draw.Text(g, searching ? "Looking for ConfigMgr, Intune and Windows log folders\u2026" : "No known log folders here. Use Browse logs to look on another computer, or add your own folder in Settings.", Fonts.Ui,
-                    new Rectangle(x0, locY + Fonts.SmallSemibold.Height + Dpi.S(8), cw, Fonts.Ui.Height + 2), theme.Text2, Draw.Line);
-            if (recent.Count > 0)
-                Draw.Text(g, "Recent", Fonts.SmallSemibold, new Rectangle(x0, recentY, cw, Fonts.SmallSemibold.Height + 2), theme.Text3, Draw.Line);
-            int footH = Draw.WrapHeight(Foot, Fonts.Small, cw);
-            Draw.Text(g, Foot, Fonts.Small, new Rectangle(x0, footY, cw, footH + 2), theme.Text3, Draw.Wrap);
-            if (contentH > Height)
-            {
-                float track = Height - Dpi.S(16);
-                float len = Math.Max(Dpi.S(28), track * Height / contentH);
-                float top = Dpi.S(8) + (track - len) * scrollY / Math.Max(1, contentH - Height);
-                Draw.Fill(g, new RectangleF(Width - Dpi.S(6), top, Dpi.S(3), len), Dpi.F(1.5f), theme.Thumb);
-            }
-            Draw.Elevation(g, card, Dpi.F(8), theme);
-            Draw.Stroke(g, card, Dpi.F(8), theme.Stroke, 1f);
         }
     }
 

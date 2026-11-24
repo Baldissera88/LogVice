@@ -263,8 +263,8 @@ namespace LogVice
             Graphics g = e.Graphics;
             g.Clear(Surface);
             RectangleF card = new RectangleF(0, 0, Width, Height);
-            Draw.Fill(g, card, Dpi.F(8), theme.Card);
-            using (System.Drawing.Drawing2D.GraphicsPath clip = Draw.Round(card, Dpi.F(8)))
+            Draw.Fill(g, card, Dpi.F(7), theme.Card);
+            using (System.Drawing.Drawing2D.GraphicsPath clip = Draw.Round(card, Dpi.F(7)))
             {
                 Region old = g.Clip;
                 g.SetClip(clip);
@@ -295,8 +295,7 @@ namespace LogVice
             }
             if (Busy) PaintBusy(g, rr);
             else if (count == 0 && EmptyTitle.Length > 0) PaintEmpty(g, rr);
-            Draw.Elevation(g, card, Dpi.F(8), theme);
-            Draw.Stroke(g, card, Dpi.F(8), theme.Stroke, 1f);
+            Draw.Stroke(g, card, Dpi.F(7), theme.Divider, 1f);
         }
 
         void PaintHeader(Graphics g, Cols c)

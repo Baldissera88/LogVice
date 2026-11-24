@@ -3,6 +3,7 @@ namespace LogVice
     using System;
     using System.Collections.Generic;
     using System.Drawing;
+    using System.Text;
     using System.Windows.Forms;
 
     public sealed class FluentToggle : FluentControl
@@ -193,7 +194,7 @@ namespace LogVice
         }
     }
 
-    public sealed class SettingRow : Panel, IThemed
+    public sealed class SettingRow : Panel, IThemed, IMeasured
     {
         Theme theme = Theme.Light();
         public Glyph Glyph;
@@ -260,7 +261,7 @@ namespace LogVice
             g.Clear(Parent != null ? Parent.BackColor : theme.Bg);
             RectangleF r = new RectangleF(0, 0, Width, Height);
             Draw.Fill(g, r, Dpi.F(6), theme.Card);
-            Draw.Stroke(g, r, Dpi.F(6), theme.IsDark ? Theme.Hex(0x16181C) : theme.Stroke, 1f);
+            Draw.Stroke(g, r, Dpi.F(6), theme.Divider, 1f);
             if (Swatch != Color.Empty)
             {
                 int s = Dpi.S(18);
@@ -289,7 +290,7 @@ namespace LogVice
         }
     }
 
-    public sealed class SectionTitle : FluentControl
+    public sealed class SectionTitle : FluentControl, IMeasured
     {
         public SectionTitle(string text)
         {
@@ -299,6 +300,11 @@ namespace LogVice
             Height = Dpi.S(34);
         }
 
+        public int Measure(int width)
+        {
+            return Height;
+        }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             e.Graphics.Clear(Surface);
@@ -306,9 +312,9 @@ namespace LogVice
         }
     }
 
-    public sealed class AboutHero : FluentControl
+    public sealed class AboutHero : FluentControl, IMeasured
     {
-        public string Version = "", Detail = "", Developer = "", Blurb = "";
+        public string Version = "", Detail = "", Developer = "", Blurb = "", License = "";
         public event EventHandler MarkTapped;
         string hint = "";
         float bounce;
@@ -358,7 +364,8 @@ namespace LogVice
             int tx = Dpi.S(96);
             int bh = Draw.WrapHeight(Blurb, Fonts.Ui, Math.Max(Dpi.S(100), width - tx - Dpi.S(20)));
             int dev = Developer.Length > 0 ? Fonts.Ui.Height + Dpi.S(2) : 0;
-            return Math.Max(Dpi.S(112), Dpi.S(20) + Fonts.Title.Height + Dpi.S(4) + Fonts.Ui.Height + dev + Dpi.S(10) + bh + Dpi.S(20));
+            int lic = License.Length > 0 ? Dpi.S(8) + Fonts.Small.Height : 0;
+            return Math.Max(Dpi.S(112), Dpi.S(20) + Fonts.Title.Height + Dpi.S(4) + Fonts.Ui.Height + dev + Dpi.S(10) + bh + lic + Dpi.S(20));
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -367,7 +374,7 @@ namespace LogVice
             g.Clear(Surface);
             RectangleF r = new RectangleF(0, 0, Width, Height);
             Draw.Fill(g, r, Dpi.F(6), theme.Card);
-            Draw.Stroke(g, r, Dpi.F(6), theme.IsDark ? Theme.Hex(0x16181C) : theme.Stroke, 1f);
+            Draw.Stroke(g, r, Dpi.F(6), theme.Divider, 1f);
             float k = 1f + 0.12f * (float)Math.Sin(bounce * Math.PI);
             float m = Dpi.F(56) * k;
             Draw.AppMark(g, new RectangleF(Dpi.S(48) - m / 2f, Dpi.S(50) - m / 2f, m, m), theme);
@@ -396,92 +403,79 @@ namespace LogVice
             y += Dpi.S(10);
             int bh = Draw.WrapHeight(Blurb, Fonts.Ui, tw);
             Draw.Text(g, Blurb, Fonts.Ui, new Rectangle(tx, y, tw, bh + 2), theme.Text, Draw.Wrap);
+            y += bh;
+            if (License.Length > 0) Draw.Text(g, License, Fonts.Small, new Rectangle(tx, y + Dpi.S(8), tw, Fonts.Small.Height + 2), theme.Text3, Draw.Line);
         }
     }
 
-    public sealed class KeyTable : FluentControl
+    // Two columns: a key (a shortcut or a command) and what it does.
+    public sealed class KeyTable : FluentControl, IMeasured
     {
         readonly string[][] rows;
+        readonly bool mono;
 
-        public KeyTable(string[][] rows)
+        public KeyTable(bool monoKeys, params string[][] rows)
         {
             this.rows = rows;
+            mono = monoKeys;
             TabStop = false;
             SetStyle(ControlStyles.Selectable, false);
         }
 
-        int RowH
+        Font KeyFont
         {
-            get { return Dpi.S(34); }
+            get { return mono ? Fonts.Mono : Fonts.SmallSemibold; }
+        }
+
+        int KeyW(int width)
+        {
+            int w = 0;
+            foreach (string[] r in rows) w = Math.Max(w, Draw.Measure(r[0], KeyFont).Width + Dpi.S(16));
+            return Math.Min(w, width * 3 / 5);
+        }
+
+        int RowH(string[] r, int width)
+        {
+            int dw = Math.Max(Dpi.S(60), width - KeyW(width) - Dpi.S(64));
+            return Math.Max(Dpi.S(34), Draw.WrapHeight(r[1], Fonts.Ui, dw) + Dpi.S(14));
+        }
+
+        public string AsText()
+        {
+            StringBuilder b = new StringBuilder();
+            foreach (string[] r in rows) b.Append(r[0].PadRight(42)).Append(r[1]).Append("\r\n");
+            return b.ToString();
         }
 
         public int Measure(int width)
         {
-            int cols = width > Dpi.S(700) ? 2 : 1;
-            int perCol = (rows.Length + cols - 1) / cols;
-            return perCol * RowH + Dpi.S(16);
+            int h = Dpi.S(12);
+            foreach (string[] r in rows) h += RowH(r, width);
+            return h;
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
             g.Clear(Surface);
-            RectangleF r = new RectangleF(0, 0, Width, Height);
-            Draw.Fill(g, r, Dpi.F(6), theme.Card);
-            Draw.Stroke(g, r, Dpi.F(6), theme.IsDark ? Theme.Hex(0x16181C) : theme.Stroke, 1f);
-            int cols = Width > Dpi.S(700) ? 2 : 1;
-            int perCol = (rows.Length + cols - 1) / cols;
-            int cw = (Width - Dpi.S(16)) / cols;
-            for (int i = 0; i < rows.Length; i++)
+            RectangleF card = new RectangleF(0, 0, Width, Height);
+            Draw.Fill(g, card, Dpi.F(6), theme.Card);
+            Draw.Stroke(g, card, Dpi.F(6), theme.Divider, 1f);
+            int kw = KeyW(Width);
+            int y = Dpi.S(6);
+            int dx = Dpi.S(20) + kw + Dpi.S(20);
+            foreach (string[] r in rows)
             {
-                int c = i / perCol, k = i % perCol;
-                int x = Dpi.S(8) + c * cw, y = Dpi.S(8) + k * RowH;
-                int kw = Draw.Measure(rows[i][0], Fonts.SmallSemibold).Width + Dpi.S(16);
-                Rectangle key = new Rectangle(x + Dpi.S(12), y + (RowH - Dpi.S(22)) / 2, kw, Dpi.S(22));
+                int h = RowH(r, Width);
+                int kh = KeyFont.Height + Dpi.S(6);
+                Rectangle key = new Rectangle(Dpi.S(20), y + (h - kh) / 2, Math.Min(kw, Draw.Measure(r[0], KeyFont).Width + Dpi.S(16)), kh);
                 Draw.Fill(g, key, Dpi.F(4), theme.CardAlt);
                 Draw.Stroke(g, key, Dpi.F(4), theme.Divider, 1f);
-                Draw.Text(g, rows[i][0], Fonts.SmallSemibold, key, theme.Text, Draw.Line | TextFormatFlags.HorizontalCenter);
-                int ax = x + Dpi.S(12) + Math.Max(kw, Dpi.S(150)) + Dpi.S(12);
-                Draw.Text(g, rows[i][1], Fonts.Ui, new Rectangle(ax, y, Math.Max(0, x + cw - ax - Dpi.S(8)), RowH), theme.Text2, Draw.Line);
-            }
-        }
-    }
-
-    public sealed class InfoTable : FluentControl
-    {
-        readonly List<string[]> rows;
-
-        public InfoTable(List<string[]> rows)
-        {
-            this.rows = rows;
-            TabStop = false;
-            SetStyle(ControlStyles.Selectable, false);
-        }
-
-        int RowH { get { return Dpi.S(38); } }
-
-        public int Measure(int width)
-        {
-            return rows.Count * RowH + Dpi.S(8);
-        }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            Graphics g = e.Graphics;
-            g.Clear(Surface);
-            RectangleF r = new RectangleF(0, 0, Width, Height);
-            Draw.Fill(g, r, Dpi.F(6), theme.Card);
-            Draw.Stroke(g, r, Dpi.F(6), theme.IsDark ? Theme.Hex(0x16181C) : theme.Stroke, 1f);
-            int lw = Dpi.S(170);
-            using (Pen p = new Pen(theme.Divider))
-            {
-                for (int i = 0; i < rows.Count; i++)
-                {
-                    int y = Dpi.S(4) + i * RowH;
-                    if (i > 0) g.DrawLine(p, Dpi.S(20), y, Width - Dpi.S(20), y);
-                    Draw.Text(g, rows[i][0], Fonts.Ui, new Rectangle(Dpi.S(20), y, lw - Dpi.S(8), RowH), theme.Text2, Draw.Line);
-                    Draw.Text(g, rows[i][1], Fonts.Ui, new Rectangle(Dpi.S(20) + lw, y, Width - lw - Dpi.S(40), RowH), theme.Text, Draw.Line | TextFormatFlags.PathEllipsis);
-                }
+                Draw.Text(g, r[0], KeyFont, key, theme.Text, Draw.Line | TextFormatFlags.HorizontalCenter);
+                int dw = Math.Max(0, Width - dx - Dpi.S(20));
+                int dh = Draw.WrapHeight(r[1], Fonts.Ui, dw);
+                Draw.Text(g, r[1], Fonts.Ui, new Rectangle(dx, y + (h - dh) / 2, dw, dh + 2), theme.Text2, Draw.Wrap);
+                y += h;
             }
         }
     }
@@ -534,7 +528,7 @@ namespace LogVice
             RectangleF r = new RectangleF(0, 0, Width, Height);
             Color fill = pressed ? Theme.Over(theme.Card, theme.Pressed) : hot ? Theme.Over(theme.Card, theme.Hover) : theme.Card;
             Draw.Fill(g, r, Dpi.F(6), fill);
-            Draw.Stroke(g, r, Dpi.F(6), hot ? Theme.Mix(theme.Stroke, theme.Accent, 0.5f) : theme.Stroke, 1f);
+            Draw.Stroke(g, r, Dpi.F(6), hot ? theme.Accent : theme.Divider, 1f);
             Color tone = GroupColor(Loc.Group, theme);
             int tile = Dpi.S(36);
             RectangleF tr = new RectangleF(Dpi.S(12), (Height - tile) / 2f, tile, tile);

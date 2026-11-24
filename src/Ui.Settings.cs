@@ -16,17 +16,11 @@ namespace LogVice
         readonly FluentButton bBack;
         readonly TitleText title;
         readonly Segmented tabs;
-        readonly Panel scroll, colSettings, colHigh, colAbout;
+        readonly Panel scroll, colSettings, colHigh;
         readonly List<Control> settingsItems = new List<Control>();
         readonly List<Control> highItems = new List<Control>();
-        readonly List<Control> aboutItems = new List<Control>();
         readonly Segmented segTheme, segSize, segDensity;
         readonly FluentToggle togTint, togLines, togLive, togMerge, togReopen, togUpdates;
-        SettingRow rowUpdate;
-        FluentButton bUpdate;
-        UpdateInfo update;
-        public event Action<UpdateInfo> InstallRequested;
-        public event EventHandler WhatsNewRequested;
         List<HighlightRule> rules = new List<HighlightRule>();
         readonly SettingRow rowRecent, rowFound;
         readonly ToolTip tips;
@@ -38,11 +32,8 @@ namespace LogVice
         public event EventHandler FoldersChanged;
         public event EventHandler BrowseRequested;
         public event EventHandler RecentCleared;
-        public event EventHandler EasterEgg;
         public event EventHandler HighlightsChanged;
         public event EventHandler ElevateRequested;
-        int taps;
-        DateTime lastTap = DateTime.MinValue;
 
         public SettingsView(ToolTip tips)
         {
@@ -56,7 +47,7 @@ namespace LogVice
             tips.SetToolTip(bBack, bBack.Tip);
             bBack.Click += delegate { if (BackRequested != null) BackRequested(this, EventArgs.Empty); };
             title = new TitleText("Settings");
-            tabs = new Segmented("Settings", "Highlights", "About");
+            tabs = new Segmented("Settings", "Highlights");
             tabs.Changed += delegate { ShowTab(tabs.Selected); };
             header.AddLeft(bBack, title);
             header.AddRight(tabs);
@@ -69,11 +60,8 @@ namespace LogVice
             colSettings = new Panel();
             colHigh = new Panel();
             colHigh.Visible = false;
-            colAbout = new Panel();
-            colAbout.Visible = false;
             scroll.Controls.Add(colSettings);
             scroll.Controls.Add(colHigh);
-            scroll.Controls.Add(colAbout);
             Controls.Add(scroll);
             Controls.Add(header);
 
@@ -168,10 +156,8 @@ namespace LogVice
 
             rules = HighlightRule.Load();
             BuildHighlights();
-            BuildAbout();
             LoadValues();
             foreach (Control c in settingsItems) HookWheel(c);
-            foreach (Control c in aboutItems) HookWheel(c);
             HookWheel(header);
         }
 
@@ -213,11 +199,6 @@ namespace LogVice
             colSettings.Controls.Add(c);
         }
 
-        void AddA(Control c)
-        {
-            aboutItems.Add(c);
-            colAbout.Controls.Add(c);
-        }
 
         void Changed()
         {
@@ -431,185 +412,12 @@ namespace LogVice
             if (FoldersChanged != null) FoldersChanged(this, EventArgs.Empty);
         }
 
-        void BuildAbout()
-        {
-            AboutHero hero = new AboutHero();
-            hero.Version = "Version " + Program.Version;
-            hero.Detail = "Built " + Program.BuildDate;
-            hero.Developer = Program.Developer;
-            hero.MarkTapped += delegate
-            {
-                DateTime now = DateTime.Now;
-                taps = (now - lastTap).TotalSeconds < 2 ? taps + 1 : 1;
-                lastTap = now;
-                if (taps >= 5)
-                {
-                    taps = 0;
-                    hero.Hint("");
-                    if (EasterEgg != null) EasterEgg(this, EventArgs.Empty);
-                }
-                else if (taps >= 3) hero.Hint((5 - taps) == 1 ? "One more\u2026" : "Two more\u2026");
-            };
-            hero.Blurb = "A log viewer for ConfigMgr, Intune and Windows logs. It reads large files in the background, merges several logs by time, follows logs as they are written and explains error codes.";
-            AddA(hero);
-
-            AddA(new SectionTitle("This installation"));
-            AddA(new InfoTable(Details()));
-            FluentButton bCopy = Button("Copy details", "Copy these details to the clipboard");
-            bCopy.Click += delegate
-            {
-                StringBuilder sb = new StringBuilder();
-                sb.Append("LogVice ").Append(Program.Version).Append(" (built ").Append(Program.BuildDate).Append(") by ").Append(Program.Developer).Append("\r\n");
-                foreach (string[] kv in Details()) sb.Append(kv[0]).Append(": ").Append(kv[1]).Append("\r\n");
-                try { Clipboard.SetText(sb.ToString()); bCopy.Text = "Copied"; } catch (Exception) { bCopy.Text = "Clipboard busy"; }
-            };
-            AddA(new SettingRow(Glyph.Copy, "Copy details", "Paste them into a support ticket or an email.", bCopy));
-            bUpdate = Button("Check now", "Ask GitHub which version is the latest");
-            bUpdate.Click += delegate { UpdateClicked(); };
-            rowUpdate = new SettingRow(Glyph.Info, "Updates", "Releases are published on GitHub: " + Updates.ReleasesUrl, bUpdate);
-            AddA(rowUpdate);
-            FluentButton bNotes = Button("Show", "Read what changed in each version");
-            bNotes.Click += delegate { if (WhatsNewRequested != null) WhatsNewRequested(this, EventArgs.Empty); };
-            AddA(new SettingRow(Glyph.Text, "What's new", "Read what changed in this version and the ones before it.", bNotes));
-
-            AddA(new SectionTitle("Supported logs"));
-            AddA(new SettingRow(Glyph.File, "CMTrace", "ConfigMgr client and site server logs, Intune Management Extension logs (IntuneManagementExtension, AgentExecutor).", null));
-            AddA(new SettingRow(Glyph.File, "SMS trace", "Older ConfigMgr site server logs with $$<component><time><thread> at the end of each line.", null));
-            AddA(new SettingRow(Glyph.File, "CBS, DISM and Panther", "CBS.log, DISM.log, setupact.log and setuperr.log.", null));
-            AddA(new SettingRow(Glyph.File, "ETW traces (.etl)", "Windows Update logs in C:\\Windows\\Logs\\WindowsUpdate and other ETL files, decoded with the event information Windows has on this computer. Open several WindowsUpdate*.etl files together to get the whole history in one view.", null));
-            AddA(new SettingRow(Glyph.Events, "Windows event logs", "Live channels such as Application, System, Security and the Intune MDM, Entra, Autopilot and Windows Update logs, on this computer or on another one you connect to, and exported .evtx files. Errors and warnings are marked like in CMTrace, and live view picks up new events.", null));
-            AddA(new SettingRow(Glyph.File, "Plain text", "Any other text log. Timestamps at the start of a line are used for sorting and merging. UTF-8, UTF-16 and ANSI are detected.", null));
-
-            AddA(new SectionTitle("Keyboard shortcuts"));
-            AddA(new KeyTable(new string[][]
-            {
-                new string[] { "Alt+Home", "Start page" },
-                new string[] { "Ctrl+O", "Open logs" },
-                new string[] { "Ctrl+B", "Browse logs" },
-                new string[] { "Ctrl+I", "Follow an item through every client log" },
-                new string[] { "Ctrl+Shift+O", "Merge in more logs" },
-                new string[] { "F5", "Reload" },
-                new string[] { "Ctrl+F", "Find" },
-                new string[] { "F3 / Shift+F3", "Next / previous match" },
-                new string[] { "F8 / Shift+F8", "Next / previous error" },
-                new string[] { "F7 / Shift+F7", "Next / previous highlighted row" },
-                new string[] { "Ctrl+G", "Go to line" },
-                new string[] { "Ctrl+L", "Error lookup" },
-                new string[] { "Ctrl+C", "Copy selected rows" },
-                new string[] { "Ctrl+A", "Select all rows" },
-                new string[] { "Ctrl+,", "Settings" },
-                new string[] { "Esc", "Back from Settings or Browse logs" }
-            }));
-
-            AddA(new SectionTitle("Privacy"));
-            AddA(new SettingRow(Glyph.Info, "Your logs stay where they are", "Files are opened read-only and shared, so clients keep writing them. LogVice sends nothing about you or your logs anywhere. The only internet calls are for updates: once a day LogVice asks GitHub for the latest version, and when you select Install it downloads that version from GitHub. Both can be turned off under Settings > Updates. It only reaches another computer when you connect to it in Browse logs, through that computer's admin shares and its event log service. With Connect as, the account is used only for that connection, and its password is kept only if you tick Remember my credentials, in Windows Credential Manager.", null));
-        }
-
-        void UpdateClicked()
-        {
-            if (update != null && update.Newer)
-            {
-                if (update.CanInstall && InstallRequested != null) InstallRequested(update);
-                else try { Process.Start(update.Url); } catch (Exception) { }
-                return;
-            }
-            bUpdate.Enabled = false;
-            SetUpdateText("Checking GitHub\u2026", "Checking\u2026");
-            Updates.CheckAsync(delegate (UpdateInfo r)
-            {
-                if (IsDisposed || !IsHandleCreated) return;
-                try { BeginInvoke((Action)delegate { bUpdate.Enabled = true; ShowUpdate(r); }); } catch (InvalidOperationException) { }
-            });
-        }
-
-        public void ShowUpdate(UpdateInfo r)
-        {
-            update = r;
-            if (r == null || rowUpdate == null) return;
-            if (r.Error != null) SetUpdateText(r.Error + " Releases are published on " + Updates.ReleasesUrl, "Check now");
-            else if (r.Newer) SetUpdateText("LogVice " + r.Latest + " is available. You have " + Program.Version + ". " + (r.CanInstall ? "Install downloads it from GitHub, checks it against the release's checksum and installs it. LogVice then opens again with the same logs." : "Download opens the release page."), (r.CanInstall ? "Install " : "Download ") + r.Latest);
-            else SetUpdateText("You have the latest version, " + Program.Version + ".", "Check now");
-        }
-
-        void SetUpdateText(string desc, string button)
-        {
-            rowUpdate.Desc = desc;
-            bUpdate.Text = button;
-            bUpdate.Width = bUpdate.GetPreferredSize(Size.Empty).Width;
-            rowUpdate.PerformLayout();
-            Relayout();
-            rowUpdate.Invalidate();
-        }
-
-        static List<string[]> Details()
-        {
-            List<string[]> d = new List<string[]>();
-            d.Add(new string[] { "Version", Program.Version });
-            d.Add(new string[] { "Developer", Program.Developer });
-            d.Add(new string[] { ".NET Framework", NetVersion() });
-            d.Add(new string[] { "Windows", WindowsVersion() });
-            d.Add(new string[] { "Process", (Environment.Is64BitProcess ? "64-bit" : "32-bit") + ", " + Environment.ProcessorCount + " logical processors" });
-            d.Add(new string[] { "Computer", Environment.MachineName });
-            d.Add(new string[] { "Program", Program.Location });
-            d.Add(new string[] { "Settings", Settings.Location });
-            d.Add(new string[] { "Fonts", Fonts.UiName + ", " + Fonts.MonoName });
-            return d;
-        }
-
-        static string NetVersion()
-        {
-            try
-            {
-                using (RegistryKey hk = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
-                using (RegistryKey k = hk.OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full"))
-                {
-                    object v = k == null ? null : k.GetValue("Release");
-                    if (v is int)
-                    {
-                        int r = (int)v;
-                        string name = r >= 533320 ? "4.8.1" : r >= 528040 ? "4.8" : r >= 461808 ? "4.7.2" : r >= 461308 ? "4.7.1" : r >= 460798 ? "4.7" :
-                            r >= 394802 ? "4.6.2" : r >= 394254 ? "4.6.1" : r >= 393295 ? "4.6" : r >= 379893 ? "4.5.2" : r >= 378675 ? "4.5.1" : "4.5";
-                        return name + " (release " + r + ")";
-                    }
-                }
-            }
-            catch (Exception) { }
-            return "CLR " + Environment.Version;
-        }
-
-        static string WindowsVersion()
-        {
-            try
-            {
-                using (RegistryKey hk = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
-                using (RegistryKey k = hk.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion"))
-                {
-                    if (k != null)
-                    {
-                        string name = k.GetValue("ProductName") as string ?? "Windows";
-                        string disp = k.GetValue("DisplayVersion") as string ?? k.GetValue("ReleaseId") as string ?? "";
-                        string build = k.GetValue("CurrentBuild") as string ?? "";
-                        object ubr = k.GetValue("UBR");
-                        int b;
-                        if (int.TryParse(build, out b) && b >= 22000 && name.StartsWith("Windows 10", StringComparison.Ordinal)) name = "Windows 11" + name.Substring(10);
-                        string s = name;
-                        if (disp.Length > 0) s += " " + disp;
-                        if (build.Length > 0) s += " (build " + build + (ubr is int ? "." + ubr : "") + ")";
-                        return s;
-                    }
-                }
-            }
-            catch (Exception) { }
-            return Environment.OSVersion.VersionString;
-        }
-
         public void ShowTab(int i)
         {
             if (tabs.Selected != i) tabs.SetSilently(i);
             colSettings.Visible = i == 0;
             colHigh.Visible = i == 1;
-            colAbout.Visible = i == 2;
-            title.Text = i == 0 ? "Settings" : i == 1 ? "Highlights" : "About";
+            title.Text = i == 0 ? "Settings" : "Highlights";
             title.Fit();
             header.PerformLayout();
             scroll.AutoScrollPosition = new Point(0, 0);
@@ -621,7 +429,6 @@ namespace LogVice
         {
             LayoutCol(colSettings, settingsItems);
             LayoutCol(colHigh, highItems);
-            LayoutCol(colAbout, aboutItems);
         }
 
         void LayoutCol(Panel col, List<Control> items)
@@ -635,16 +442,8 @@ namespace LogVice
             col.SuspendLayout();
             foreach (Control c in items)
             {
-                int h;
-                SettingRow r = c as SettingRow;
-                AboutHero hero = c as AboutHero;
-                KeyTable kt = c as KeyTable;
-                InfoTable it = c as InfoTable;
-                if (r != null) h = r.Measure(w);
-                else if (it != null) h = it.Measure(w);
-                else if (hero != null) h = hero.Measure(w);
-                else if (kt != null) h = kt.Measure(w);
-                else h = c.Height;
+                IMeasured m = c as IMeasured;
+                int h = m != null ? m.Measure(w) : c.Height;
                 if (c is SectionTitle && y > 0) y += Dpi.S(14);
                 c.SetBounds(0, y, w, h);
                 y += h + (c is SectionTitle ? Dpi.S(2) : Dpi.S(4));
@@ -659,10 +458,9 @@ namespace LogVice
             BackColor = t.Bg;
             header.ApplyTheme(t);
             scroll.BackColor = t.Bg;
-            colSettings.BackColor = colHigh.BackColor = colAbout.BackColor = t.Bg;
+            colSettings.BackColor = colHigh.BackColor = t.Bg;
             foreach (Control c in header.Controls) { IThemed th = c as IThemed; if (th != null) th.ApplyTheme(t); }
             foreach (Control c in settingsItems) { IThemed th = c as IThemed; if (th != null) th.ApplyTheme(t); }
-            foreach (Control c in aboutItems) { IThemed th = c as IThemed; if (th != null) th.ApplyTheme(t); }
             foreach (Control c in highItems) { IThemed th = c as IThemed; if (th != null) th.ApplyTheme(t); }
             NativeMethods.ScrollTheme(scroll, t.IsDark);
             Invalidate(true);

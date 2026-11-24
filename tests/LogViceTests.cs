@@ -65,6 +65,9 @@ namespace LogVice.Tests
             SavedThemeName();
             PalettesComplete();
             DemoLogs();
+            HeaderFoldOrder();
+            RecentPins();
+            HeaderSubtitles();
 
             Console.WriteLine(failed == 0 ? "ALL TESTS PASSED" : failed + " TEST(S) FAILED");
             return failed == 0 ? 0 : 1;
@@ -447,6 +450,72 @@ namespace LogVice.Tests
             Check(colours, "every palette has all its colours set");
             Check(alpha, "every palette has hover, pressed and scroll thumb alpha, and the theme keeps it");
             Check(contrast, "text, accent text and find marks are readable in every palette" + (worst.Length > 0 ? " (check " + worst.Trim() + ")" : ""));
+        }
+
+        static void HeaderFoldOrder()
+        {
+            string[] names = HeaderFold.Order;
+            int[] widths = new int[names.Length];
+            for (int i = 0; i < widths.Length; i++) widths[i] = 100;
+            int total = widths.Length * 100;
+            Check(HeaderFold.Folded(names, widths, 90, total).Count == 0, "the header folds nothing when every button fits");
+            // The More button takes room too, so one button is not enough here.
+            List<string> one = HeaderFold.Folded(names, widths, 90, total - 100);
+            Check(one.Count == 2 && one[0] == "Reload" && one[1] == "Lookup", "the header folds Reload first, then Lookup");
+            List<string> two = HeaderFold.Folded(names, widths, 90, total - 210);
+            Check(two.Count == 3 && two[0] == "Reload" && two[1] == "Lookup" && two[2] == "Follow", "the header folds Reload, Lookup and Follow in that order (" + string.Join(",", two.ToArray()) + ")");
+            List<string> all = HeaderFold.Folded(names, widths, 90, 0);
+            string[] stay = { "Back", "Forward", "Start", "Open", "Settings", "Help", "Stop" };
+            bool kept = true;
+            foreach (string n in stay) if (all.Contains(n)) kept = false;
+            Check(kept && all.Count == HeaderFold.FoldOrder.Length && all[0] == "Reload" && all[1] == "Lookup" && all[2] == "Follow" && all[3] == "Browse" && all[4] == "Live", "Back, Forward, Start, Open, Stop, Settings and Help never fold; Browse and Live fold last of the five");
+            string[] few = { "Back", "Reload", "Help" };
+            List<string> fewFolded = HeaderFold.Folded(few, new int[] { 50, 50, 50 }, 40, 100);
+            Check(fewFolded.Count == 1 && fewFolded[0] == "Reload", "buttons that are not in the row are skipped when folding");
+            bool[] none = NarrowFit.Hidden(new int[] { 10, 10 }, new int[] { 0 }, 5, 100);
+            Check(!none[0] && !none[1], "NarrowFit hides nothing when the room is enough");
+            Check(NarrowFit.Capped(900, 700) == 700 && NarrowFit.Capped(500, 700) == 500 && NarrowFit.Inside(900, 300, 0, 1000) == 700 && NarrowFit.Inside(-5, 300, 0, 1000) == 0, "dialog sizes and places are kept inside the screen");
+        }
+
+        static void RecentPins()
+        {
+            List<string> raw = new List<string>();
+            raw.Add(@"C:\Logs\new.log");
+            raw.Add(@"*C:\Logs\old-pinned.log");
+            raw.Add(@"C:\Logs\a.log|C:\Logs\b.log");
+            raw.Add(@"*evt:Application");
+            List<RecentEntry> list = RecentList.ParseAll(raw);
+            Check(list.Count == 4 && !list[0].Pinned && list[1].Pinned && list[1].Paths[0] == @"C:\Logs\old-pinned.log" && list[2].Paths.Length == 2, "recent entries are read with their pins");
+            Check(string.Join(";", RecentList.FormatAll(list).ToArray()) == string.Join(";", raw.ToArray()), "recent entries are written the way they were read");
+            List<RecentEntry> ordered = RecentList.Ordered(list);
+            Check(ordered[0].Paths[0] == @"C:\Logs\old-pinned.log" && ordered[1].Paths[0] == "evt:Application" && ordered[2].Paths[0] == @"C:\Logs\new.log" && ordered[3].Paths.Length == 2, "pinned entries come first, then the newest");
+            List<RecentEntry> found = RecentList.Search(list, "old pinned");
+            Check(found.Count == 1 && found[0].Paths[0] == @"C:\Logs\old-pinned.log", "searching the recent list matches every word in the name");
+            Check(RecentList.Search(list, "a.log").Count == 1 && RecentList.Search(list, "APPLICATION").Count == 1 && RecentList.Search(list, "nothing here").Count == 0 && RecentList.Search(list, "  ").Count == 4, "searching the recent list ignores case, finds folders and event logs, and an empty search lists everything");
+            List<RecentEntry> added = RecentList.Add(list, new string[] { @"C:\Logs\old-pinned.log" });
+            Check(added.Count == 4 && added[0].Paths[0] == @"C:\Logs\old-pinned.log" && added[0].Pinned, "opening a pinned entry again moves it up and keeps the pin");
+            List<RecentEntry> many = new List<RecentEntry>();
+            for (int i = 0; i < 15; i++) many = RecentList.Add(many, new string[] { @"C:\Logs\f" + i + ".log" });
+            many = RecentList.SetPinned(many, new string[] { @"C:\Logs\f10.log" }, true);
+            many = RecentList.Add(many, new string[] { @"C:\Logs\f99.log" });
+            int pinned = 0;
+            foreach (RecentEntry e in many) if (e.Pinned) pinned++;
+            Check(many.Count == RecentList.MaxUnpinned + 1 && pinned == 1 && many[0].Paths[0] == @"C:\Logs\f99.log", "the recent list keeps ten entries and the pinned ones");
+            Check(RecentList.Remove(list, new string[] { "evt:Application" }).Count == 3 && RecentList.SetPinned(list, new string[] { @"C:\Logs\new.log" }, true)[0].Pinned, "a recent entry can be removed or pinned");
+        }
+
+        static void HeaderSubtitles()
+        {
+            Check(HeaderText.Subtitle(false, "X", new string[0]) == "No logs open", "the subtitle says that no logs are open");
+            Check(HeaderText.Subtitle(true, "CONTOSO-LT0417", new string[] { @"C:\T\AppEnforce.log", @"C:\T\CAS.log" }) == "Demo logs \u00b7 CONTOSO-LT0417", "the subtitle names the demo logs and the made-up computer");
+            string dir = Path.Combine(Path.GetTempPath(), "Logs");
+            string first = Path.Combine(dir, "AppEnforce.log");
+            string one = HeaderText.Subtitle(false, "X", new string[] { first });
+            Check(one == "AppEnforce.log \u00b7 " + dir, "the subtitle of one log is its name and folder");
+            string many = HeaderText.Subtitle(false, "X", new string[] { first, "b.log", "c.log", "d.log" });
+            Check(many == "AppEnforce.log + 3 more \u00b7 merged by time \u00b7 " + dir, "the subtitle of several logs says how many more, that they are merged by time, and the folder");
+            Check(HeaderText.Subtitle(false, "X", new string[] { "evt:Application" }) == "Event log: Application", "the subtitle of an event log names the channel");
+            Check(HeaderText.Subtitle(false, "X", new string[] { "evt:Application", "evt:System" }) == "Event logs: Application + 1 more \u00b7 merged by time", "the subtitle of several event logs says how many more");
         }
 
         static void DemoLogs()
