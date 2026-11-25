@@ -8,7 +8,7 @@ namespace LogVice
 
     public static class Program
     {
-        public const string BuildDate = "24 November 2026";
+        public const string BuildDate = "25 November 2026";
         public const string Developer = "Daniel L. Baldissera";
         public static string ScriptPath;
 
@@ -98,6 +98,7 @@ namespace LogVice
                 Environment.ExitCode = Updates.Apply(args);
                 return;
             }
+            if (args != null && Array.IndexOf(args, "--timing") >= 0) StartTiming.Begin();
             System.Threading.ThreadPool.QueueUserWorkItem(delegate { Updates.CleanUp(); });
             Run(StartOptions.Parse(args));
         }
@@ -128,6 +129,7 @@ namespace LogVice
                 initialized = true;
                 Settings.ReadOnly = Options.Shot != null;
                 Settings.Migrate();
+                StartTiming.Mark("Settings read");
                 Theme.Override = Options.Theme;
                 if (Options.Shot == null) Theme.KeepEarlierChoice();
                 try { NativeMethods.SetProcessDPIAware(); } catch (Exception) { }
@@ -142,15 +144,19 @@ namespace LogVice
                     using (Graphics g = Graphics.FromHwnd(IntPtr.Zero)) Dpi.Scale = Math.Max(1f, g.DpiX / 96f);
                 }
                 catch (Exception) { }
+                StartTiming.Mark("Visual styles and DPI");
                 Fonts.Init();
+                StartTiming.Mark("Fonts");
                 if (Options.Scale != null) ShotScale.Apply(Options.Scale);
                 Application.ThreadException += delegate (object sender, System.Threading.ThreadExceptionEventArgs e)
                 {
                     MessageBox.Show(e.Exception.Message, "LogVice", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 };
             }
+            StartTiming.Mark("Building the window");
             using (MainForm f = new MainForm(Options.Paths))
             {
+                StartTiming.Mark("Window built");
                 Application.Run(f);
             }
         }
@@ -224,6 +230,7 @@ namespace LogVice
                 string low = a.ToLowerInvariant();
                 bool more = i + 1 < args.Length;
                 if (low == "--demo") o.Demo = true;
+                else if (low == "--timing") { }
                 else if (low == "--errors") o.Errors = true;
                 else if (low == "--shot" && more) o.Shot = args[++i];
                 else if (low == "--theme" && more) o.Theme = args[++i];

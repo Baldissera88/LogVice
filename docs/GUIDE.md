@@ -283,6 +283,7 @@ LogVice.exe C:\Temp\CONTOSO-LT0417.logvice
 | `--errors` | Only shows errors and warnings |
 | `--theme <name>` | Uses this theme for this run only: Light, Dark, Vice, Terminal, Amber, Synthwave or System |
 | `--demo` | Opens made-up ConfigMgr, Intune and agent logs of CONTOSO-LT0417, merged by time. Nothing on this PC is read |
+| `--timing` | Writes how long each step of the start took to `%TEMP%\LogVice-start.txt`, to find out why LogVice starts slowly |
 
 The options work with files, event logs and sessions, alone or together. LogVice ignores an option it does not know and says so in the status bar. **Help > Command line** lists them all. Another tool can call LogVice the same way. This opens the Intune app log at the time of an installation and searches for the app:
 
@@ -376,6 +377,7 @@ The only internet calls LogVice makes are for updates. At most once a day it ask
 | Follow an item finds no apps on another computer | Reading the client's WMI and the installed apps on another computer needs the Windows Management Instrumentation firewall rules on it. Without WMI, LogVice lists what it finds in the logs |
 | SmartScreen warns on the first start | The exe and MSI are unsigned. Select **More info** and **Run anyway**. Check the download with `SHA256SUMS.txt` first. AppLocker and WDAC need the files signed with your own certificate |
 | The update does not install | Users without administrator rights cannot install the MSI. Deploy the new version with Intune or ConfigMgr and turn off the update check |
+| LogVice is slow to start | Start it once with `LogVice.exe --timing`, or with `--timing` after a log path. `%TEMP%\LogVice-start.txt` then shows how long each step took. A long time before LogVice's own code ran points at Windows, .NET or antivirus scanning the exe; a long time loading the logs points at the logs themselves. Send the file with Help > Report a problem |
 | The order of rows looks wrong | Merging sorts by the local time in each log, so logs from different time zones can interleave out of order |
 
 ### Known limitations

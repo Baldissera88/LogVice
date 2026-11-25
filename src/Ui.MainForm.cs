@@ -779,6 +779,13 @@ namespace LogVice
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
+            StartTiming.Mark("Window shown");
+            if (StartTiming.On)
+            {
+                EventHandler idle = null;
+                idle = delegate { Application.Idle -= idle; StartTiming.Mark("Ready (first idle)"); };
+                Application.Idle += idle;
+            }
             ShotAtStart();
             if (eggMode) StartEgg();
             else if (Program.Options.SessionPath != null) OpenSession(Program.Options.SessionPath, Landing.From(Program.Options));
@@ -1433,6 +1440,7 @@ namespace LogVice
 
         void LoadDone(Store s, LoadToken tok, TimeSpan el, string err)
         {
+            StartTiming.Mark("Logs loaded in " + (long)el.TotalMilliseconds + " ms (" + (s == null ? 0 : s.Sources.Count) + " source(s))");
             if (tok.State == 2 || s != st)
             {
                 if (s != st) CloseSources(s);

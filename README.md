@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 2.0.0" src="https://img.shields.io/badge/version-2.0.0-005fb8">
+  <img alt="Version 2.0.1" src="https://img.shields.io/badge/version-2.0.1-005fb8">
   <a href="../../actions/workflows/build.yml"><img alt="Build" src="../../actions/workflows/build.yml/badge.svg"></a>
   <img alt="Windows 10, 11 and Server 2016 or later" src="https://img.shields.io/badge/Windows-10%20%7C%2011%20%7C%20Server%202016%2B-0078d4">
   <img alt=".NET Framework 4.8 included in Windows" src="https://img.shields.io/badge/.NET%20Framework-4.8%20(in%20Windows)-512bd4">
@@ -113,8 +113,8 @@ The administrative template is in [`policy/`](policy). For the MSI command lines
 | Setting | Value |
 |---|---|
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {34EAA767-3B0B-4EAD-825C-7DB0C33F69FC} /qn` |
-| Detection | MSI product code `{34EAA767-3B0B-4EAD-825C-7DB0C33F69FC}` (version 2.0.0) |
+| Uninstall command | `msiexec /x {0EF13C5B-E19D-44F6-940C-94D37FB65E1A} /qn` |
+| Detection | MSI product code `{0EF13C5B-E19D-44F6-940C-94D37FB65E1A}` (version 2.0.1) |
 | Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (the same for every version) |
 
 Each new version has a new product code, listed in the [changelog](CHANGELOG.md) and in the release notes.

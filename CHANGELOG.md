@@ -6,7 +6,8 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 
 | Version | Highlights | Upgrade |
 |---|---|---|
-| **2.0.0** (latest) | New look with six themes, Settings, Help and updates like TrackVice, saved sessions with Back and Forward, Copy for ticket, open at a line from the command line, JSON Lines logs | Run the MSI, or select Install in the status bar when LogVice says a new version is out. It replaces Trace Lens and any earlier version |
+| **2.0.1** (latest) | Start-up timing log to find out why LogVice starts slowly on a PC | Run the MSI, or select Install in the status bar when LogVice says a new version is out. It replaces Trace Lens and any earlier version |
+| 2.0.0 | New look with six themes, Settings, Help and updates like TrackVice, saved sessions with Back and Forward, Copy for ticket, open at a line from the command line, JSON Lines logs | |
 | 1.5.6 | Installing an update no longer hangs, with a window that shows each step | |
 | 1.5.5 | Follow an item: Intune Store apps, remediations, scripts and installed apps, several items at once, Windows events in the timeline | |
 | 1.5.4 | New app icon, and an icon of its own for log files | |
@@ -22,6 +23,20 @@ All versions of LogVice, newest first. LogVice was called Trace Lens up to versi
 | 1.1.0 | Windows 11 style with light and dark themes | |
 
 ![LogVice in the Vice theme](docs/images/main-vice.png)
+
+## LogVice 2.0.1
+
+25 November 2026.
+
+| | |
+|---|---|
+| Product code | `{0EF13C5B-E19D-44F6-940C-94D37FB65E1A}` |
+| Upgrade code | `{2A8DF866-E6D4-4A44-ABAC-C64CA0D367B3}` (unchanged) |
+| Files | `LogVice.msi`, `LogVice.exe`, `SHA256SUMS.txt` |
+
+### New
+
+- **Start-up timing**: start LogVice with `--timing` and it writes how long each step of the start took to `%TEMP%\LogVice-start.txt`. It shows whether the time goes before LogVice's own code runs (Windows, .NET or antivirus scanning the exe), in building the window, or in loading the logs. Help > Command line and the guide's troubleshooting table describe it.
 
 ## LogVice 2.0.0
 
@@ -371,13 +386,14 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 
 | Package | How to upgrade from an earlier version |
 | --- | --- |
-| LogVice.msi | Run the 2.0.0 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
+| LogVice.msi | Run the 2.0.1 MSI. It replaces Trace Lens or an earlier LogVice in place, with no uninstall needed |
 | LogVice.exe (portable) | Delete TraceLens.exe and use LogVice.exe. Your settings are copied on first start |
 
 | MSI setting | Value |
 | --- | --- |
 | Install command | `msiexec /i LogVice.msi /qn` |
-| Uninstall command | `msiexec /x {34EAA767-3B0B-4EAD-825C-7DB0C33F69FC} /qn` |
+| Uninstall command | `msiexec /x {0EF13C5B-E19D-44F6-940C-94D37FB65E1A} /qn` |
+| Product code (2.0.1) | `{0EF13C5B-E19D-44F6-940C-94D37FB65E1A}` |
 | Product code (2.0.0) | `{34EAA767-3B0B-4EAD-825C-7DB0C33F69FC}` |
 | Product code (1.5.6) | `{3287F79C-BE69-4FF5-823D-564678B829C3}` |
 | Product code (1.5.5) | `{BC1C2600-3FA3-4AA7-8AF7-576F60674AB7}` |
@@ -399,7 +415,7 @@ LogVice needs Windows 10, Windows 11 or Windows Server 2016 or later. It runs on
 | Install context | System, per machine |
 | Restart | Not needed |
 
-In Intune or ConfigMgr, add 2.0.0 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
+In Intune or ConfigMgr, add 2.0.1 as a new app that supersedes the earlier version and detects the new product code. Devices then upgrade without an uninstall step.
 
 ## Known limitations
 

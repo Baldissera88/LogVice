@@ -134,6 +134,7 @@ namespace LogVice
             new string[] { "--errors", "Only show errors and warnings" },
             new string[] { "--demo", "Open made-up ConfigMgr, Intune and agent logs of CONTOSO-LT0417, merged by time. Nothing on this PC is read" },
             new string[] { "--theme <name>", "Use this theme for this run only: Light, Dark, Vice, Terminal, Amber or Synthwave. System follows Windows" },
+            new string[] { "--timing", "Write how long each step of the start took to %TEMP%\\LogVice-start.txt, to find out why LogVice starts slowly" },
             new string[] { "Example", "LogVice.exe \"C:\\ProgramData\\Microsoft\\IntuneManagementExtension\\Logs\\AppWorkload.log\" --time \"2026-11-24 21:21:57\" --find \"Contoso Timesheet\" --theme vice" },
             new string[] { "--shot <file.png> [--size WxH]", "Save a picture of the window and exit. Nothing is saved in this run" },
             new string[] { "--page <name> [--select <text>]", "With --shot: show a page: welcome, about, shortcuts, commandline, ticket or history. --select picks a row by its text" }
