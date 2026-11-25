@@ -46,6 +46,12 @@ namespace LogVice.Tests
             Check(finished && RecentCheck.Missing(gone) && !RecentCheck.Missing(there), "the background check marks a missing recent file and keeps the one that is there");
             RecentCheck.Reset();
             Check(!RecentCheck.Missing(gone), "Reset forgets the results");
+            UpdateInfo early = new UpdateInfo();
+            early.Newer = true; early.Latest = "9.0.0";
+            Check(Updates.StillPublishing(early) && !early.Newer && early.Error != null && early.Error.Contains("being published"), "a release without its files yet is not offered");
+            UpdateInfo ready = new UpdateInfo();
+            ready.Newer = true; ready.Latest = "9.0.0"; ready.SumsUrl = "https://github.com/Baldissera88/LogVice/releases/download/v9.0.0/SHA256SUMS.txt";
+            Check(!Updates.StillPublishing(ready) && ready.Newer, "a release with its files is offered");
             try { Directory.Delete(dir, true); } catch (Exception) { }
         }
 

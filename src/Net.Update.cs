@@ -220,6 +220,7 @@ namespace LogVice
                     json = sr.ReadToEnd();
                 Parse(json, r);
                 r.CheckedUtc = DateTime.UtcNow;
+                if (StillPublishing(r)) return r;
                 Settings.Set("UpdateChecked", r.CheckedUtc.Ticks.ToString(CultureInfo.InvariantCulture));
             }
             catch (WebException ex)
@@ -229,6 +230,16 @@ namespace LogVice
             }
             catch (Exception) { r.Error = "GitHub could not be reached."; }
             return r;
+        }
+
+        // A new release whose files are not attached yet: GitHub Actions adds them a few minutes after it is published.
+        // It is not offered as a download then, and the check is not counted, so the next start asks again.
+        public static bool StillPublishing(UpdateInfo r)
+        {
+            if (r == null || !r.Newer || r.SumsUrl != null) return false;
+            r.Newer = false;
+            r.Error = "LogVice " + r.Latest + " is being published. Its files are added a few minutes after the release; check again then.";
+            return true;
         }
 
         public static void Parse(string json, UpdateInfo r)
