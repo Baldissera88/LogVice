@@ -76,6 +76,7 @@ namespace LogVice.Tests
             FeedbackLinks();
             FeedbackMail();
             GridWidths();
+            RecentFilesCheck();
             JsonDetection();
             JsonFields();
             JsonLevelsAndTimes();

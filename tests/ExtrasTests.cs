@@ -26,6 +26,29 @@ namespace LogVice.Tests
             return st.Sev[i] == 3 ? "error" : st.Sev[i] == 2 ? "warning" : "info";
         }
 
+        // ---------- recent files checked in the background ----------
+
+        static void RecentFilesCheck()
+        {
+            Check(RecentCheck.Host(@"\\CONTOSO-LT0417\C$\Windows\CCM\Logs\AppEnforce.log") == "CONTOSO-LT0417", "the computer of a UNC path is found");
+            Check(RecentCheck.Host(@"C:\Windows\CCM\Logs\AppEnforce.log") == "", "a local path has no computer");
+            string dir = Tmp();
+            string there = Path.Combine(dir, "there.log"), gone = Path.Combine(dir, "gone.log");
+            File.WriteAllText(there, "x");
+            Check(!RecentCheck.Missing(gone), "a recent file not checked yet counts as there, so the window never waits");
+            Check(!RecentCheck.Missing("evt:Application"), "an event log channel is never missing");
+            System.Threading.ManualResetEvent done = new System.Threading.ManualResetEvent(false);
+            Action changed = delegate { if (RecentCheck.Missing(gone)) done.Set(); };
+            RecentCheck.Changed += changed;
+            RecentCheck.Check(new string[] { there, gone, "evt:Application" });
+            bool finished = done.WaitOne(10000);
+            RecentCheck.Changed -= changed;
+            Check(finished && RecentCheck.Missing(gone) && !RecentCheck.Missing(there), "the background check marks a missing recent file and keeps the one that is there");
+            RecentCheck.Reset();
+            Check(!RecentCheck.Missing(gone), "Reset forgets the results");
+            try { Directory.Delete(dir, true); } catch (Exception) { }
+        }
+
         // ---------- JSON reader ----------
 
         static void JsonDetection()

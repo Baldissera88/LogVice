@@ -195,6 +195,7 @@ namespace LogVice
             grid.ShowLines = Settings.GetBool("LineNumbers", true);
             grid.SetDensity(Settings.GetInt("Density", 1, 0, 2));
             Microsoft.Win32.SystemEvents.UserPreferenceChanged += OnUserPreference;
+            RecentCheck.Changed += delegate { SafeInvoke(delegate { start.UpdateFound(); }); };
 
             tailTimer.Interval = 1000;
             tailTimer.Tick += delegate { TailTick(); };
@@ -800,9 +801,14 @@ namespace LogVice
                 List<string[]> r = Settings.Recent();
                 if (r.Count > 0)
                 {
-                    bool all = true;
-                    foreach (string p in r[0]) { if (!EventLogs.Available(p)) all = false; }
-                    if (all) OpenAny(r[0], false);
+                    // Checked in the background: a log on a computer that is off can take half a minute to answer.
+                    string[] last = r[0];
+                    System.Threading.ThreadPool.QueueUserWorkItem(delegate
+                    {
+                        bool all = true;
+                        foreach (string p in last) { if (!EventLogs.Available(p)) all = false; }
+                        if (all) SafeInvoke(delegate { if (st.Sources.Count == 0 && !loading) OpenAny(last, false); });
+                    });
                 }
             }
             if (st.Sources.Count == 0 && !loading)

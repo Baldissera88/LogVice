@@ -54,7 +54,7 @@ namespace LogVice
             foreach (RecentEntry e in list)
             {
                 bool exists = true;
-                foreach (string p in e.Paths) if (!EventLogs.Available(p)) exists = false;
+                foreach (string p in e.Paths) if (RecentCheck.Missing(p)) exists = false;
                 string[] paths = e.Paths;
                 string detail = e.Detail;
                 if (detail.Length > 48) detail = "\u2026" + detail.Substring(detail.Length - 47);
@@ -63,7 +63,7 @@ namespace LogVice
                 mi.ToolTipText = string.Join("\r\n", paths);
             }
             Menus.Separator(parent.DropDown);
-            Menus.Add(parent.DropDown, "Clear recent files", delegate { Settings.ClearRecent(); RefreshRecent(); });
+            Menus.Add(parent.DropDown, "Clear recent files", delegate { Settings.ClearRecent(); RecentCheck.Reset(); RefreshRecent(); });
         }
 
         void RefreshRecent()

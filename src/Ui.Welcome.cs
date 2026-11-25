@@ -104,7 +104,7 @@ namespace LogVice
     {
         public readonly RecentEntry Entry;
         readonly string name, detail;
-        readonly bool exists;
+        bool exists;
         bool pinHot;
         public event EventHandler PinClicked, MenuRequested;
 
@@ -113,12 +113,23 @@ namespace LogVice
             Entry = entry;
             name = entry.Label;
             detail = entry.Detail;
-            exists = true;
-            foreach (string p in entry.Paths)
-                if (!EventLogs.Available(p)) exists = false;
+            exists = Found();
             Height = Dpi.S(38);
             TabStop = true;
             Cursor = Cursors.Hand;
+        }
+
+        bool Found()
+        {
+            foreach (string p in Entry.Paths) if (RecentCheck.Missing(p)) return false;
+            return true;
+        }
+
+        // Shows the entry as not found once the background check says so.
+        public void UpdateFound()
+        {
+            bool f = Found();
+            if (f != exists) { exists = f; Invalidate(); }
         }
 
         Rectangle PinRect()
@@ -322,7 +333,16 @@ namespace LogVice
         public void SetRecent(List<RecentEntry> list)
         {
             allRecent = RecentList.Ordered(list ?? new List<RecentEntry>());
+            List<string> paths = new List<string>();
+            foreach (RecentEntry e in allRecent) paths.AddRange(e.Paths);
+            RecentCheck.Check(paths);
             Refill();
+        }
+
+        // The background check has new results.
+        public void UpdateFound()
+        {
+            foreach (RecentRow r in rows) r.UpdateFound();
         }
 
         void Refill()
